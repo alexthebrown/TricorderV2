@@ -3,6 +3,8 @@ import requests as rq
 import pathlib as pl
 import os
 
+# This is a working example for the tricorder program. It works well on windows but had to be updated to run on the Raspberry Pi set up. 
+
 # Weather Variables
 cWeather = None
 class weather:
@@ -16,7 +18,7 @@ cWeather = weather(None,None,None,None)
 currentPage = "mm"
 
 video_paths = []
-videoDir = 'Y:\Code\Videos'
+videoDir = '' # INSERT VIDEO FOLDER PATH HERE
 video_buttons = []
 cl_buttons = []
 clPos = 0
