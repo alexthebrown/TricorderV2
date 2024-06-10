@@ -181,8 +181,7 @@ window = tk.Tk(className='Tricorder')
 window.attributes('-fullscreen', False)
 trekFont = "Trek"
 username = "Scott Thunder"
-window.configure(bg='black',width=320,height=240)
-window.maxsize(320,240)
+window.configure(bg='black',width=720,height=576)
 window.resizable(width=False,height=False)
 window.attributes('-fullscreen',True)
 
