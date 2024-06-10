@@ -156,7 +156,7 @@ def enumerate_videos():
     path = pl.Path(videoDir)
     for item in path.iterdir():
         if item.is_file():
-            if item.name.endswith('.mkv'):
+            if item.name.endswith('.mp4'):
                 video_paths.append(item)
                 print(item)
 
@@ -196,7 +196,7 @@ def show_main_menu():
     highlight_button(planet_butt)
 
 def playVideo(path):
-    command = "mplayer " + "'" + str(path) + "' -fs"
+    command = "clvc " + "'" + str(path) + "' -f"
     print(command)
     os.system(command)
 
