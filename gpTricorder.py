@@ -2,8 +2,7 @@ import tkinter as tk
 import requests as rq
 import pathlib as pl
 import os
-
-# This is a working example for the tricorder program. It works well on windows but had to be updated to run on the Raspberry Pi set up. 
+import RPi.GPIO as GPIO
 
 # Weather Variables
 cWeather = None
@@ -12,16 +11,28 @@ class weather:
         self.temp = temp
         self.humidity = humidity
         self.precip = precip
-        self.sfc = sfc
-
-cWeather = weather(None,None,None,None)
-currentPage = "mm"
-
+        self.sfc = None
 video_paths = []
-videoDir = '' # INSERT VIDEO FOLDER PATH HERE
+videoDir = '/home/tricorder/networkdrive/Videos'
 video_buttons = []
 cl_buttons = []
 clPos = 0
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(17, GPIO.IN)  # Up button
+GPIO.setup(18, GPIO.IN)  # Down button
+GPIO.setup(27, GPIO.IN)  # Left button
+GPIO.setup(22, GPIO.IN)  # Right button
+GPIO.setup(23, GPIO.IN)  # Enter button
+
+# Define key mappings
+key_mappings = {
+    17: 'up',
+    18: 'down',
+    27: 'left',
+    22: 'right',
+    23: 'enter'
+}
 
 
 def highlight_next_button(event):
@@ -89,6 +100,29 @@ def handle_enter(event):
     if active_button:
         active_button.config(relief=tk.SUNKEN)  # Simulate button click
         active_button.invoke()  # Execute the button's associated command
+
+def hat():
+    # Read button states
+        up_state = GPIO.input(17)
+        down_state = GPIO.input(18)
+        left_state = GPIO.input(27)
+        right_state = GPIO.input(22)
+        enter_state = GPIO.input(23)
+        
+        # Simulate key presses
+        if up_state == GPIO.LOW:
+            highlight_previous_button(None)
+            
+        elif down_state == GPIO.LOW:
+            highlight_next_button(None)
+            
+        elif left_state == GPIO.LOW:
+            highlight_previous_button(None)
+        elif right_state == GPIO.LOW:
+            highlight_next_button(None)
+        elif enter_state == GPIO.LOW:
+            handle_enter(None)
+        window.after(250,hat)    
 
 def highlight_button(button):
     planet_butt.config(relief=tk.RAISED)
@@ -162,9 +196,9 @@ def show_main_menu():
     highlight_button(planet_butt)
 
 def playVideo(path):
-    command = "omxplayer " + str(path)
+    command = "mplayer " + "'" + str(path) + "' -fs"
     print(command)
-    #os.system(command)
+    os.system(command)
 
 
 def get_weather():
@@ -201,18 +235,18 @@ bottomButtons = tk.Frame(window,bg='black')
 
 
 top = tk.Label(header, text="USS ENTERPRISE NCC-1701 STANDARD ISSUE",
-               font=(trekFont, 15), bg='black', fg='#86DF64', padx=5, pady=5)
+               font=(trekFont, 42), bg='black', fg='#86DF64', padx=5, pady=10)
 tricorder = tk.Label(center, text="TRICORDER",
-                     font=(trekFont, 45), fg='#DAD778', bg='black')
+                     font=(trekFont,135), fg='#DAD778', bg='black')
 
-planet_butt = tk.Button(topButtons, font=(trekFont,13), text="PLANET", bg='#86DF64', fg='black', padx=5, pady=5, command=show_planet_page)
-CL_butt = tk.Button(topButtons, font=(trekFont,13), text="CAPTAIN'S LOG", bg='#86DF64', fg='black', padx=5, pady=5, command=show_captains_log_page)
-stat_butt = tk.Button(topButtons, font=(trekFont,13), text="STATUS", bg='#86DF64', fg='black', padx=5, pady=5, command=show_status_page)
+planet_butt = tk.Button(topButtons, font=(trekFont,39), text="PLANET", bg='#86DF64', fg='black', padx=5, pady=5, command=show_planet_page)
+CL_butt = tk.Button(topButtons, font=(trekFont,39), text="CAPTAIN'S LOG", bg='#86DF64', fg='black', padx=5, pady=5, command=show_captains_log_page)
+stat_butt = tk.Button(topButtons, font=(trekFont,39), text="STATUS", bg='#86DF64', fg='black', padx=5, pady=5, command=show_status_page)
 
-userLabel = tk.Label(bottomButtons, text=username, font=(trekFont,13), bg='black', fg='#DAD778', pady=9)
-sensor_butt = tk.Button(bottomButtons, font=(trekFont,13), text="SENSORS", bg='#86DF64', fg='black', padx=5, pady=5)
-select_butt = tk.Button(bottomButtons, font=(trekFont,13), text="SELECT", bg='#86DF64', fg='black', padx=5, pady=5)
-input_butt = tk.Button(bottomButtons, font=(trekFont,13), text="INPUT", bg='#86DF64', fg='black', padx=5, pady=5)
+userLabel = tk.Label(bottomButtons, text=username, font=(trekFont,39), bg='black', fg='#DAD778', pady=9)
+sensor_butt = tk.Button(bottomButtons, font=(trekFont,39), text="SENSORS", bg='#86DF64', fg='black', padx=5, pady=5)
+select_butt = tk.Button(bottomButtons, font=(trekFont,39), text="SELECT", bg='#86DF64', fg='black', padx=5, pady=5)
+input_butt = tk.Button(bottomButtons, font=(trekFont,39), text="INPUT", bg='#86DF64', fg='black', padx=5, pady=5)
 
 # Create separate frames for each page
 planet_page = tk.Frame(window, bg='black')
@@ -230,23 +264,23 @@ sfc_frame = tk.Frame(planet_page,bg='black', pady=10)
 
 
 # Add widgets to the planet page (WEATHER)
-planet_label = tk.Label(pl_header, text="Planet Conditions", font=(trekFont,27), bg='black', fg='#DAD778',padx=10)
-planet_back_button = tk.Button(pl_header, font=(trekFont,15), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+planet_label = tk.Label(pl_header, text="Planet Conditions", font=(trekFont,81), bg='black', fg='#DAD778',padx=10)
+planet_back_button = tk.Button(pl_header, font=(trekFont,45), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
 
-temp_title = tk.Label(temp_frame, font=trekFont,text='Temperature:', bg='#DAD778',fg='black', padx=5, pady=5)
-temp_label =tk.Label(temp_frame, font=(trekFont),textvariable=tempVar, padx=0, pady=5,bg='#DAD778', fg='black')
-temp_symbol = tk.Label(temp_frame, font=(trekFont),text="°", padx=0, bg='#DAD778', fg='black')
-farenheight = tk.Label(temp_frame, text="F",font=(trekFont, 15),padx=15, bg='#DAD778',fg='black')
+temp_title = tk.Label(temp_frame, font=(trekFont,30),text='Temperature:', bg='#DAD778',fg='black', padx=5, pady=5)
+temp_label =tk.Label(temp_frame, font=(trekFont,30),textvariable=tempVar, padx=0, pady=5,bg='#DAD778', fg='black')
+temp_symbol = tk.Label(temp_frame, font=(trekFont,30),text="°", padx=0, bg='#DAD778', fg='black')
+farenheight = tk.Label(temp_frame, text="F",font=(trekFont, 45),padx=15, bg='#DAD778',fg='black')
 
-humid_label = tk.Label(humid_frame, font=(trekFont),text="Humidity: ",fg='black',bg='#DAD778')
-humid_var_label =tk.Label(humid_frame,font=trekFont,textvariable=humVar, fg='black', bg='#DAD778')
-humidPC_label = tk.Label(humid_frame, font=trekFont,text='%', fg='black', bg='#DAD778')
+humid_label = tk.Label(humid_frame, font=(trekFont,30),text="Humidity: ",fg='black',bg='#DAD778')
+humid_var_label =tk.Label(humid_frame,font=(trekFont,30),textvariable=humVar, fg='black', bg='#DAD778')
+humidPC_label = tk.Label(humid_frame, font=(trekFont,30),text='%', fg='black', bg='#DAD778')
 
-precip_label = tk.Label(precip_frame, font=trekFont, text='Chance Precip: ', fg='black', bg='#DAD778')
-precip_var_label = tk.Label(precip_frame, font=trekFont,textvariable=precVar, fg='black', bg='#DAD778')
-precipPC_label = tk.Label(precip_frame, font=trekFont, text='%', fg='black', bg='#DAD778')
+precip_label = tk.Label(precip_frame, font=(trekFont,30), text='Chance Precip: ', fg='black', bg='#DAD778')
+precip_var_label = tk.Label(precip_frame, font=(trekFont,30),textvariable=precVar, fg='black', bg='#DAD778')
+precipPC_label = tk.Label(precip_frame, font=(trekFont,30), text='%', fg='black', bg='#DAD778')
 
-sfc_label = tk.Label(sfc_frame, font=trekFont, textvariable=sfcVar, fg='#DAD778', bg='black')
+sfc_label = tk.Label(sfc_frame, font=(trekFont,30), textvariable=sfcVar, fg='#DAD778', bg='black')
                        
 # Captain's Log Internal Frames
 
@@ -256,24 +290,24 @@ logsL = tk.Frame(logHolder, bg="black")
 logsR = tk.Frame(logHolder, bg="black")
 
 # Add widgets to the captain's log page
-captains_log_label = tk.Label(cl_header, text="Captain's Log Page", font=(trekFont,25), bg='black', fg='#DAD778', padx=5)
-captains_log_back_button = tk.Button(cl_header, font=(trekFont), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+captains_log_label = tk.Label(cl_header, text="Captain's Log Page", font=(trekFont,75), bg='black', fg='#DAD778', padx=5)
+captains_log_back_button = tk.Button(cl_header, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
 
 enumerate_videos()
 alternator = 0
 for video in video_paths:
     if alternator == 0:
-        newButton = tk.Button(logsL,text=video.name.removesuffix('.mkv'),font=trekFont, bg= '#86DF64',fg='black', command= lambda tV=video:playVideo(tV))
+        newButton = tk.Button(logsL,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:playVideo(tV))
         alternator = 1
     else:
-        newButton = tk.Button(logsR,text=video.name.removesuffix('.mkv'),font=trekFont, bg= '#86DF64',fg='black', command= lambda tV=video:playVideo(tV))
+        newButton = tk.Button(logsR,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:playVideo(tV))
         alternator = 0
     video_buttons.append(newButton)
 
 
 # Add widgets to the status page
-status_label = tk.Label(status_page, text="Status Page", font=(trekFont), bg='black', fg='#DAD778')
-status_back_button = tk.Button(status_page, font=(trekFont), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+status_label = tk.Label(status_page, text="Status Page", font=(trekFont,30), bg='black', fg='#DAD778')
+status_back_button = tk.Button(status_page, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
 
 header.pack()
 top.pack()
@@ -353,6 +387,11 @@ window.bind("<Up>", highlight_previous_button)
 window.bind("<Down>", highlight_next_button)
 window.bind("<Return>", handle_enter)
 
-
-
+window.after(2000,hat)
 window.mainloop()
+GPIO.cleanup()
+
+    
+
+
+
