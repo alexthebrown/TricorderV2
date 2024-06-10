@@ -182,7 +182,7 @@ window.attributes('-fullscreen', False)
 trekFont = "Trek"
 username = "Scott Thunder"
 window.configure(bg='black',width=720,height=576)
-window.resizable(width=False,height=False)
+
 window.attributes('-fullscreen',True)
 
 tempVar = tk.StringVar()
