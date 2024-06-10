@@ -196,7 +196,7 @@ def show_main_menu():
     highlight_button(planet_butt)
 
 def playVideo(path):
-    command = "clvc " + "'" + str(path) + "' -f"
+    command = "cvlc " + "'" + str(path) + "' -f"
     print(command)
     os.system(command)
 
