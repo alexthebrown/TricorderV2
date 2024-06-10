@@ -184,7 +184,7 @@ username = "Scott Thunder"
 window.configure(bg='black',width=320,height=240)
 window.maxsize(320,240)
 window.resizable(width=False,height=False)
-#window.attributes('-fullscreen',True)
+window.attributes('-fullscreen',True)
 
 tempVar = tk.StringVar()
 humVar = tk.StringVar()
