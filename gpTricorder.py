@@ -3,6 +3,8 @@ import requests as rq
 import pathlib as pl
 import os
 import RPi.GPIO as GPIO
+import multiprocessing
+import time
 
 # Weather Variables
 cWeather = None
@@ -297,10 +299,10 @@ enumerate_videos()
 alternator = 0
 for video in video_paths:
     if alternator == 0:
-        newButton = tk.Button(logsL,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:playVideo(tV))
+        newButton = tk.Button(logsL,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:multiprocessing.Process(target=playVideo, args=(tV,)))
         alternator = 1
     else:
-        newButton = tk.Button(logsR,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:playVideo(tV))
+        newButton = tk.Button(logsR,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:multiprocessing.Process(target=playVideo, args=(tV,)))
         alternator = 0
     video_buttons.append(newButton)
 
