@@ -202,6 +202,10 @@ def playVideo(path):
     print(command)
     os.system(command)
 
+def videoProcess(path):
+    child = multiprocessing.Process(target=playVideo, args=(path,))
+    child.start()
+    child.join()
 
 def get_weather():
     URL = "https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly"
@@ -299,10 +303,10 @@ enumerate_videos()
 alternator = 0
 for video in video_paths:
     if alternator == 0:
-        newButton = tk.Button(logsL,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:multiprocessing.Process(target=playVideo, args=(tV,)))
+        newButton = tk.Button(logsL,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:videoProcess(tV))
         alternator = 1
     else:
-        newButton = tk.Button(logsR,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:multiprocessing.Process(target=playVideo, args=(tV,)))
+        newButton = tk.Button(logsR,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:videoProcess(tV))
         alternator = 0
     video_buttons.append(newButton)
 
