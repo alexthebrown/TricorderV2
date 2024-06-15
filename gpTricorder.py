@@ -24,6 +24,7 @@ class TricorderApp:
         self.video_paths = []
         self.cl_buttons = []
         self.trek_font = "Trek"
+        self.video_process = None
 
         self.init_gpio()
         self.init_vars()
@@ -181,8 +182,8 @@ class TricorderApp:
     def init_status_page(self):
         self.status_page = tk.Frame(self.root, bg='black')
         self.status_label = tk.Label(
-            self.status_page, text="Status Page", font=(self.trek_font, 30),
-            bg='black', fg='#DAD778'
+            self.status_page, text="Status Page", font=(self.trek_font, 75),
+            bg='black', fg='#DAD778', padx=5
         )
         self.status_back_button = tk.Button(
             self.status_page, font=(self.trek_font, 30), text="Back", bg='#86DF64',
@@ -310,7 +311,21 @@ class TricorderApp:
         self.root.after(2000, self.hat)
 
     def play_video(self, path):
-        os.system(f'omxplayer {path}')
+        if self.video_process is not None:
+            self.video_process.terminate()
+
+        self.video_process = multiprocessing.Process(target=self.run_video, args=(path,))
+        self.video_process.start()
+        self.root.after(100, self.check_video_process)
+
+    def run_video(self, path):
+        os.system(f'cvlc --play-and-exit {path}')
+
+    def check_video_process(self):
+        if self.video_process.is_alive():
+            self.root.after(100, self.check_video_process)
+        else:
+            self.show_captains_log_page()
 
     def clear_screen(self):
         for widget in self.root.winfo_children():
