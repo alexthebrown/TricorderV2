@@ -6,7 +6,6 @@ import RPi.GPIO as GPIO
 import multiprocessing
 import time
 
-
 class Weather:
     def __init__(self, temp, precip, humidity, sfc):
         self.temp = temp
@@ -288,6 +287,7 @@ class TricorderApp:
                 pl.PurePath(video_directory, v) for v in os.listdir(video_directory)
                 if v.endswith('.mp4') and os.path.isfile(pl.PurePath(video_directory, v))
             ]
+
         else:
             os.makedirs(video_directory)
 
@@ -337,3 +337,4 @@ if __name__ == "__main__":
     root.geometry("320x240")
     app = TricorderApp(root, "Captain Kirk")
     root.mainloop()
+
