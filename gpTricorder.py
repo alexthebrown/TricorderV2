@@ -5,9 +5,9 @@ import os
 import RPi.GPIO as GPIO
 import multiprocessing
 import time
-from tkvideo.tkvideo import player
-from tkvideo.tkvideo.tools import Controls
-from tkinter import ttk
+from tkinter import ttk, Canvas
+import cv2
+from PIL import Image, ImageTk
 import sv_ttk
 
 # Weather Variables
@@ -201,15 +201,12 @@ def show_main_menu():
 
     highlight_button(planet_butt)
 
-def playVideo(path):
-    command = "cvlc " + "'" + str(path) + "' -f"
-    print(command)
-    os.system(command)
-
-def videoProcess(path):
-    child = multiprocessing.Process(target=playVideo, args=(path,))
-    child.start()
-    child.join()
+def show_video_page(path):
+    global currentPage
+    captains_log_page.pack_forget()
+    player_page.pack()
+    currentPage = "player"
+    start_video(path)
 
 def get_weather():
     URL = "https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly"
@@ -262,6 +259,7 @@ input_butt = tk.Button(bottomButtons, font=(trekFont,39), text="INPUT", bg='#86D
 planet_page = tk.Frame(window, bg='black')
 captains_log_page = tk.Frame(window, bg='black')
 status_page = tk.Frame(window, bg='black')
+player_page = tk.Frame(window, bg='black')
 
 # Planet Internal Frames
 pl_header = tk.Frame(planet_page,bg='black',padx=5,pady=5)
@@ -307,12 +305,69 @@ enumerate_videos()
 alternator = 0
 for video in video_paths:
     if alternator == 0:
-        newButton = tk.Button(logsL,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:videoProcess(tV))
+        newButton = tk.Button(logsL,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:show_video_page(tV))
         alternator = 1
     else:
-        newButton = tk.Button(logsR,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:videoProcess(tV))
+        newButton = tk.Button(logsR,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:show_video_page(tV))
         alternator = 0
     video_buttons.append(newButton)
+
+def start_video(path):
+    global cap
+    cap = cv2.VideoCapture(path)
+    global is_paused 
+    is_paused = False
+    global is_stopped
+    is_stopped = False
+    update_frame()
+
+def update_frame(self):
+    if not is_paused and not is_stopped:
+        ret, frame = cap.read()
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BAYER_BG2BGR)
+            frame = Image.fromarray(frame)
+            frame = ImageTk.PhotoImage(frame)
+
+            canvas.create_image(0,0,anchor=tk.NW,image=frame)
+            canvas.image = frame
+        
+    if not is_stopped:
+        self.after(30, update_frame)
+
+def play_video(self):
+    global is_paused
+    global is_stopped
+    is_paused = False
+    is_stopped = False
+    update_frame()
+
+def pause_video(self):
+    global is_paused
+    is_paused = True
+
+def stop_video(self):
+    global is_stopped
+    is_stopped = True
+    cap.release()
+    canvas.delete("all")
+    show_captains_log_page()
+
+def on_close(self):
+    global is_stopped
+    is_stopped = True
+    cap.release()
+
+# Add bits inside video player
+canvas = Canvas(player_page,720,526)
+canvas.pack()
+play_button = tk.Button(player_page, text="Play", command=play_video)
+play_button.pack()
+pause_button = tk.Button(player_page, text="Pause",command=pause_video)
+pause_button.pack()
+stop_button = tk.Button(player_page, text="Stop", command=stop_video)
+stop_button.pack()
+
 
 
 # Add widgets to the status page
