@@ -1,4 +1,4 @@
 Requests==2.32.3
 av==9.2.0
 pillow>=9.0.1
-opencv-python==2.4.9
+opencv-python=4.10.0.84
