@@ -8,7 +8,6 @@ import time
 from tkinter import ttk, Canvas
 import cv2
 from PIL import Image, ImageTk
-import sv_ttk
 
 # Weather Variables
 cWeather = None
