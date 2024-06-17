@@ -5,6 +5,10 @@ import os
 import RPi.GPIO as GPIO
 import multiprocessing
 import time
+from tkvideo.tkvideo import player
+from tkvideo.tkvideo.tools import Controls
+from tkinter import ttk
+import sv_ttk
 
 # Weather Variables
 cWeather = None
@@ -303,10 +307,10 @@ enumerate_videos()
 alternator = 0
 for video in video_paths:
     if alternator == 0:
-        newButton = tk.Button(logsL,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:videoProcess(tV))
+        newButton = tk.Button(logsL,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:videoProcess(tV))
         alternator = 1
     else:
-        newButton = tk.Button(logsR,text=video.name.removesuffix('.mkv'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:videoProcess(tV))
+        newButton = tk.Button(logsR,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:videoProcess(tV))
         alternator = 0
     video_buttons.append(newButton)
 
