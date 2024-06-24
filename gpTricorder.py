@@ -205,7 +205,7 @@ def show_video_page(path):
     captains_log_page.pack_forget()
     player_page.pack()
     currentPage = "player"
-    start_video(path)
+    start_video(str(path))
 
 def get_weather():
     URL = "https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly"
