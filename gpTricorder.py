@@ -331,7 +331,7 @@ def update_frame():
 
             canvas.create_image(0,0,anchor=tk.NW,image=frame)
             canvas.image = frame
-            window.after(10, update_frame)
+            window.after(1, update_frame)
         
     # if not is_stopped:
     #     window.after(10, update_frame)
