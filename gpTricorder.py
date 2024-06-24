@@ -333,7 +333,7 @@ def update_frame():
             canvas.image = frame
         
     if not is_stopped:
-        window.after(30, update_frame)
+        window.after(10, update_frame)
 
 def play_video():
     global is_paused
