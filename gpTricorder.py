@@ -320,7 +320,7 @@ def start_video(path):
     is_stopped = False
     update_frame()
 
-def update_frame(self):
+def update_frame():
     if not is_paused and not is_stopped:
         ret, frame = cap.read()
         if ret:
@@ -332,7 +332,7 @@ def update_frame(self):
             canvas.image = frame
         
     if not is_stopped:
-        self.after(30, update_frame)
+        window.after(30, update_frame)
 
 def play_video(self):
     global is_paused
