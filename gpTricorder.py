@@ -324,7 +324,7 @@ def update_frame():
     if not is_paused and not is_stopped:
         ret, frame = cap.read()
         if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BAYER_BG2BGR)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BG2BGR)
             frame = Image.fromarray(frame)
             frame = ImageTk.PhotoImage(frame)
 
