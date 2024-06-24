@@ -172,6 +172,7 @@ def show_captains_log_page():
     center.pack_forget()
     topButtons.pack_forget()
     bottomButtons.pack_forget()
+    player_page.pack_forget()
     clPos = 0
     currentPage = "cl"
     highlight_button(captains_log_back_button)
