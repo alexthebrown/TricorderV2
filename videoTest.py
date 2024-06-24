@@ -64,7 +64,7 @@ class VideoPlayer(tk.Tk):
         self.destroy()
 
 if __name__ == "__main__":
-    video_path = "/Users/alexbrown/Downloads/stds9tat2.mp4"  # Specified video file path
+    video_path = "/Users/alexbrown/Downloads/stds9tat3.mov"  # Specified video file path
     app = VideoPlayer(video_path)
     app.protocol("WM_DELETE_WINDOW", app.on_close)
     app.mainloop()

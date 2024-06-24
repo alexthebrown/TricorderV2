@@ -358,7 +358,7 @@ def on_close(self):
     cap.release()
 
 # Add bits inside video player
-canvas = Canvas(player_page,720,526)
+canvas = Canvas(player_page, width=720, height=526)
 canvas.pack()
 play_button = tk.Button(player_page, text="Play", command=play_video)
 play_button.pack()
