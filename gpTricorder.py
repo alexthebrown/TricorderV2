@@ -338,9 +338,9 @@ def update_frame():
 def play_video():
     global is_paused
     global is_stopped
-    is_paused = False
-    is_stopped = False
-    update_frame()
+    if is_paused:
+        is_paused = False
+        update_frame()
 
 def pause_video():
     global is_paused
