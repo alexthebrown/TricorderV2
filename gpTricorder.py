@@ -334,25 +334,25 @@ def update_frame():
     if not is_stopped:
         window.after(30, update_frame)
 
-def play_video(self):
+def play_video():
     global is_paused
     global is_stopped
     is_paused = False
     is_stopped = False
     update_frame()
 
-def pause_video(self):
+def pause_video():
     global is_paused
     is_paused = True
 
-def stop_video(self):
+def stop_video():
     global is_stopped
     is_stopped = True
     cap.release()
     canvas.delete("all")
     show_captains_log_page()
 
-def on_close(self):
+def on_close():
     global is_stopped
     is_stopped = True
     cap.release()
