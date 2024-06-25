@@ -362,11 +362,11 @@ def on_close():
 # Add bits inside video player
 canvas = Canvas(player_page, width=720, height=526)
 canvas.pack()
-play_button = tk.Button(player_page, font=(trekFont,30), text="Play", command=play_video, text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+play_button = tk.Button(player_page, font=(trekFont,30), text="Play", command=play_video, bg='#86DF64', fg='black', padx=5, pady=5)
 play_button.pack()
-pause_button = tk.Button(player_page, font=(trekFont,30), text="Pause",command=pause_video, text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+pause_button = tk.Button(player_page, font=(trekFont,30), text="Pause",command=pause_video, bg='#86DF64', fg='black', padx=5, pady=5)
 pause_button.pack()
-stop_button = tk.Button(player_page, font=(trekFont,30), text="Stop", command=stop_video, text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+stop_button = tk.Button(player_page, font=(trekFont,30), text="Stop", command=stop_video, bg='#86DF64', fg='black', padx=5, pady=5)
 stop_button.pack()
 
 
