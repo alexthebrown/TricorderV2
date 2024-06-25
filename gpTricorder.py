@@ -72,6 +72,14 @@ def highlight_next_button(event):
     elif(currentPage == "stat"):
         pass
 
+    elif(currentPage == "player"):
+        if current_button == play_button:
+            highlight_button(pause_button)
+        elif current_button == pause_button:
+            highlight_button(stop_button)
+        elif current_button == stop_button:
+            highlight_button(play_button)
+
 def highlight_previous_button(event):
     global currentPage
     global clPos
@@ -99,6 +107,14 @@ def highlight_previous_button(event):
         highlight_button(cl_buttons[clPos])
     elif(currentPage == "stat"):
         pass
+
+    elif(currentPage == "player"):
+        if current_button == play_button:
+            highlight_button(stop_button)
+        elif current_button == pause_button:
+            highlight_button(play_button)
+        elif current_button == stop_button:
+            highlight_button(pause_button)
 
 def handle_enter(event):
     active_button = window.focus_get()
@@ -136,6 +152,9 @@ def highlight_button(button):
     sensor_butt.config(relief=tk.RAISED)
     select_butt.config(relief=tk.RAISED)
     input_butt.config(relief=tk.RAISED)
+    play_button.config(relief=tk.RAISED)
+    pause_button.config(relief=tk.RAISED)
+    stop_button.config(relief=tk.RAISED)
     
     if button:
         button.config(relief=tk.SUNKEN)
@@ -206,6 +225,7 @@ def show_video_page(path):
     captains_log_page.pack_forget()
     player_page.pack()
     currentPage = "player"
+    highlight_button(play_button)
     start_video(str(path))
 
 def get_weather():
