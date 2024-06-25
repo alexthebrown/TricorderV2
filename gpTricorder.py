@@ -349,7 +349,7 @@ def update_frame():
             frame = Image.fromarray(frame)
             frame = ImageTk.PhotoImage(frame)
 
-            canvas.create_image(-100,0,anchor=tk.NW,image=frame)
+            canvas.create_image(-110,0,anchor=tk.NW,image=frame)
             canvas.image = frame
             window.after(1, update_frame)
         
