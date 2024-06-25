@@ -8,6 +8,8 @@ import time
 from tkinter import ttk, Canvas
 import cv2
 from PIL import Image, ImageTk
+import picamera
+import io
 
 # Weather Variables
 cWeather = None
@@ -48,9 +50,9 @@ def highlight_next_button(event):
         if current_button == planet_butt:
             highlight_button(CL_butt)
         elif current_button == CL_butt:
-            highlight_button(stat_butt)
-        elif current_button == stat_butt:
             highlight_button(sensor_butt)
+        elif current_button == sensor_butt:
+            highlight_button(stat_butt)
         elif current_button == sensor_butt:
             highlight_button(select_butt)
         elif current_button == select_butt:
@@ -69,7 +71,7 @@ def highlight_next_button(event):
             clPos = clPos + 1
         highlight_button(cl_buttons[clPos])
 
-    elif(currentPage == "stat"):
+    elif(currentPage == "sensor"):
         pass
 
     elif(currentPage == "player"):
@@ -89,10 +91,10 @@ def highlight_previous_button(event):
             highlight_button(input_butt)
         elif current_button == CL_butt:
             highlight_button(planet_butt)
-        elif current_button == stat_butt:
-            highlight_button(CL_butt)
         elif current_button == sensor_butt:
-            highlight_button(stat_butt)
+            highlight_button(CL_butt)
+        elif current_button == stat_butt:
+            highlight_button(sensor_butt)
         elif current_button == select_butt:
             highlight_button(sensor_butt)
         elif current_button == input_butt:
@@ -105,7 +107,7 @@ def highlight_previous_button(event):
         else:
             clPos = clPos - 1
         highlight_button(cl_buttons[clPos])
-    elif(currentPage == "stat"):
+    elif(currentPage == "sensor"):
         pass
 
     elif(currentPage == "player"):
@@ -197,21 +199,21 @@ def show_captains_log_page():
     highlight_button(captains_log_back_button)
     captains_log_page.pack()
 
-def show_status_page():
+def show_sensor_page():
     global currentPage
     header.pack_forget()
     center.pack_forget()
     topButtons.pack_forget()
     bottomButtons.pack_forget()
-    currentPage = "stat"
-    highlight_button(status_back_button)
-    status_page.pack()
+    currentPage = "sensor"
+    highlight_button(sensor_back_button)
+    sensor_page.pack()
 
 def show_main_menu():
     global currentPage
     planet_page.pack_forget()
     captains_log_page.pack_forget()
-    status_page.pack_forget()
+    sensor_page.pack_forget()
     header.pack()
     center.pack()
     topButtons.pack()
@@ -227,6 +229,29 @@ def show_video_page(path):
     currentPage = "player"
     highlight_button(play_button)
     start_video(str(path))
+
+def start_camera():
+    global stream
+    stream = io.BytesIO()
+    camera.start_preview()
+    update_image()
+
+def update_image():
+    camera.capture(stream,format='jpeg', use_video_port=True)
+    stream.seek(0)
+    image = Image.open(stream)
+    image = ImageTk.PhotoImage(image)
+    image_label.configure(image=image)
+    image_label.image = image
+    stream.seek(0)
+    stream.truncate()
+    window.after(100,update_image)
+
+def on_closing():
+    camera.stop_preview()
+    camera.close()
+    show_main_menu()
+
 
 def get_weather():
     URL = "https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly"
@@ -268,17 +293,17 @@ tricorder = tk.Label(center, text="TRICORDER",
 
 planet_butt = tk.Button(topButtons, font=(trekFont,39), text="PLANET", bg='#86DF64', fg='black', padx=5, pady=5, command=show_planet_page)
 CL_butt = tk.Button(topButtons, font=(trekFont,39), text="CAPTAIN'S LOG", bg='#86DF64', fg='black', padx=5, pady=5, command=show_captains_log_page)
-stat_butt = tk.Button(topButtons, font=(trekFont,39), text="STATUS", bg='#86DF64', fg='black', padx=5, pady=5, command=show_status_page)
+sensor_butt = tk.Button(topButtons, font=(trekFont,39), text="SENSORS", bg='#86DF64', fg='black', padx=5, pady=5, command=show_sensor_page)
 
 userLabel = tk.Label(bottomButtons, text=username, font=(trekFont,39), bg='black', fg='#DAD778', pady=9)
-sensor_butt = tk.Button(bottomButtons, font=(trekFont,39), text="SENSORS", bg='#86DF64', fg='black', padx=5, pady=5)
+stat_butt = tk.Button(bottomButtons, font=(trekFont,39), text="STATUS", bg='#86DF64', fg='black', padx=5, pady=5)
 select_butt = tk.Button(bottomButtons, font=(trekFont,39), text="SELECT", bg='#86DF64', fg='black', padx=5, pady=5)
 input_butt = tk.Button(bottomButtons, font=(trekFont,39), text="INPUT", bg='#86DF64', fg='black', padx=5, pady=5)
 
 # Create separate frames for each page
 planet_page = tk.Frame(window, bg='black')
 captains_log_page = tk.Frame(window, bg='black')
-status_page = tk.Frame(window, bg='black')
+sensor_page = tk.Frame(window, bg='black')
 player_page = tk.Frame(window, bg='black')
 
 # Planet Internal Frames
@@ -320,6 +345,9 @@ logsR = tk.Frame(logHolder, bg="black")
 # Add widgets to the captain's log page
 captains_log_label = tk.Label(cl_header, text="Captain's Log Page", font=(trekFont,75), bg='black', fg='#DAD778', padx=5)
 captains_log_back_button = tk.Button(cl_header, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+
+# Add widgets to the Sensors page
+image_label = tk.Label(sensor_page)
 
 enumerate_videos()
 alternator = 0
@@ -379,6 +407,9 @@ def on_close():
     is_stopped = True
     cap.release()
 
+camera = picamera.PiCamera()
+camera.resolution = (320,240)
+
 # Add bits inside video player
 canvas = Canvas(player_page, width=720, height=526)
 canvas.pack()
@@ -392,8 +423,8 @@ stop_button.pack(side='left')
 
 
 # Add widgets to the status page
-status_label = tk.Label(status_page, text="Status Page", font=(trekFont,30), bg='black', fg='#DAD778')
-status_back_button = tk.Button(status_page, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+sensor_label = tk.Label(sensor_page, text="Sensor Page", font=(trekFont,30), bg='black', fg='#DAD778')
+sensor_back_button = tk.Button(sensor_page, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
 
 header.pack()
 top.pack()
@@ -413,7 +444,7 @@ input_butt.pack(side='left')
 # Add functionality to back buttons
 planet_back_button.config(command=show_main_menu)
 captains_log_back_button.config(command=show_main_menu)
-status_back_button.config(command=show_main_menu)
+sensor_back_button.config(command=show_main_menu)
 
 # Add back buttons to respective pages
 pl_header.pack()
@@ -458,8 +489,8 @@ for new_button in video_buttons:
 
 
 
-status_back_button.pack()
-status_label.pack()
+sensor_back_button.pack()
+sensor_label.pack()
 
 # Initially show the main menu
 show_main_menu()
