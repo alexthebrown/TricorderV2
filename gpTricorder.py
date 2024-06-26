@@ -208,7 +208,6 @@ def show_sensor_page():
     currentPage = "sensor"
     highlight_button(sensor_back_button)
     sensor_page.pack()
-    start_camera()  # Start the camera when showing the sensor page
 
 def show_main_menu():
     global currentPage
@@ -222,7 +221,6 @@ def show_main_menu():
     currentPage = "mm"
 
     highlight_button(planet_butt)
-    on_closing()  # Close the camera when returning to the main menu
 
 def show_video_page(path):
     global currentPage
@@ -239,7 +237,7 @@ def start_camera():
     update_image()
 
 def update_image():
-    camera.capture(stream, format='jpeg', use_video_port=True)
+    camera.capture(stream,format='jpeg', use_video_port=True)
     stream.seek(0)
     image = Image.open(stream)
     image = ImageTk.PhotoImage(image)
@@ -247,12 +245,13 @@ def update_image():
     image_label.image = image
     stream.seek(0)
     stream.truncate()
-    if currentPage == "sensor":
-        window.after(100, update_image)  # Continue updating the image if still on the sensor page
+    window.after(100,update_image)
 
 def on_closing():
     camera.stop_preview()
     camera.close()
+    show_main_menu()
+
 
 def get_weather():
     URL = "https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly"
@@ -280,3 +279,236 @@ precVar=tk.StringVar()
 # Main Menu Frames
 header = tk.Frame(window)
 center = tk.Frame(window)
+topButtons = tk.Frame(window)
+bottomButtons = tk.Frame(window,bg='black')
+
+
+
+
+
+top = tk.Label(header, text="USS ENTERPRISE NCC-1701 STANDARD ISSUE",
+               font=(trekFont, 42), bg='black', fg='#86DF64', padx=5, pady=10)
+tricorder = tk.Label(center, text="TRICORDER",
+                     font=(trekFont,135), fg='#DAD778', bg='black')
+
+planet_butt = tk.Button(topButtons, font=(trekFont,39), text="PLANET", bg='#86DF64', fg='black', padx=5, pady=5, command=show_planet_page)
+CL_butt = tk.Button(topButtons, font=(trekFont,39), text="CAPTAIN'S LOG", bg='#86DF64', fg='black', padx=5, pady=5, command=show_captains_log_page)
+sensor_butt = tk.Button(topButtons, font=(trekFont,39), text="SENSORS", bg='#86DF64', fg='black', padx=5, pady=5, command=show_sensor_page)
+
+userLabel = tk.Label(bottomButtons, text=username, font=(trekFont,39), bg='black', fg='#DAD778', pady=9)
+stat_butt = tk.Button(bottomButtons, font=(trekFont,39), text="STATUS", bg='#86DF64', fg='black', padx=5, pady=5)
+select_butt = tk.Button(bottomButtons, font=(trekFont,39), text="SELECT", bg='#86DF64', fg='black', padx=5, pady=5)
+input_butt = tk.Button(bottomButtons, font=(trekFont,39), text="INPUT", bg='#86DF64', fg='black', padx=5, pady=5)
+
+# Create separate frames for each page
+planet_page = tk.Frame(window, bg='black')
+captains_log_page = tk.Frame(window, bg='black')
+sensor_page = tk.Frame(window, bg='black')
+player_page = tk.Frame(window, bg='black')
+
+# Planet Internal Frames
+pl_header = tk.Frame(planet_page,bg='black',padx=5,pady=5)
+pl_middle = tk.Frame(planet_page,bg='black')
+temp_frame = tk.Frame(pl_middle,bg='#DAD778',padx=5,pady=5)
+right_pl_frame = tk.Frame(pl_middle,bg='black',padx=5,pady=5)
+humid_frame = tk.Frame(right_pl_frame,bg='#DAD778',pady=5)
+precip_frame = tk.Frame(right_pl_frame, bg='#DAD778')
+sfc_frame = tk.Frame(planet_page,bg='black', pady=10)
+
+
+# Add widgets to the planet page (WEATHER)
+planet_label = tk.Label(pl_header, text="Planet Conditions", font=(trekFont,81), bg='black', fg='#DAD778',padx=10)
+planet_back_button = tk.Button(pl_header, font=(trekFont,45), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+
+temp_title = tk.Label(temp_frame, font=(trekFont,30),text='Temperature:', bg='#DAD778',fg='black', padx=5, pady=5)
+temp_label =tk.Label(temp_frame, font=(trekFont,30),textvariable=tempVar, padx=0, pady=5,bg='#DAD778', fg='black')
+temp_symbol = tk.Label(temp_frame, font=(trekFont,30),text="°", padx=0, bg='#DAD778', fg='black')
+farenheight = tk.Label(temp_frame, text="F",font=(trekFont, 45),padx=15, bg='#DAD778',fg='black')
+
+humid_label = tk.Label(humid_frame, font=(trekFont,30),text="Humidity: ",fg='black',bg='#DAD778')
+humid_var_label =tk.Label(humid_frame,font=(trekFont,30),textvariable=humVar, fg='black', bg='#DAD778')
+humidPC_label = tk.Label(humid_frame, font=(trekFont,30),text='%', fg='black', bg='#DAD778')
+
+precip_label = tk.Label(precip_frame, font=(trekFont,30), text='Chance Precip: ', fg='black', bg='#DAD778')
+precip_var_label = tk.Label(precip_frame, font=(trekFont,30),textvariable=precVar, fg='black', bg='#DAD778')
+precipPC_label = tk.Label(precip_frame, font=(trekFont,30), text='%', fg='black', bg='#DAD778')
+
+sfc_label = tk.Label(sfc_frame, font=(trekFont,30), textvariable=sfcVar, fg='#DAD778', bg='black')
+                       
+# Captain's Log Internal Frames
+
+cl_header = tk.Frame(captains_log_page, bg='black', padx=14, pady=3)
+logHolder = tk.Frame(captains_log_page, bg='black', padx=14, pady=3)
+logsL = tk.Frame(logHolder, bg="black")
+logsR = tk.Frame(logHolder, bg="black")
+
+# Add widgets to the captain's log page
+captains_log_label = tk.Label(cl_header, text="Captain's Log Page", font=(trekFont,75), bg='black', fg='#DAD778', padx=5)
+captains_log_back_button = tk.Button(cl_header, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+
+# Add widgets to the Sensors page
+image_label = tk.Label(sensor_page)
+
+enumerate_videos()
+alternator = 0
+for video in video_paths:
+    if alternator == 0:
+        newButton = tk.Button(logsL,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:show_video_page(tV))
+        alternator = 1
+    else:
+        newButton = tk.Button(logsR,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:show_video_page(tV))
+        alternator = 0
+    video_buttons.append(newButton)
+
+def start_video(path):
+    global cap
+    cap = cv2.VideoCapture(path)
+    global is_paused 
+    is_paused = False
+    global is_stopped
+    is_stopped = False
+    update_frame()
+
+def update_frame():
+    if not is_paused and not is_stopped:
+        ret, frame = cap.read()
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = Image.fromarray(frame)
+            frame = ImageTk.PhotoImage(frame)
+
+            canvas.create_image(-110,0,anchor=tk.NW,image=frame)
+            canvas.image = frame
+            window.after(1, update_frame)
+        
+    # if not is_stopped:
+    #     window.after(10, update_frame)
+
+def play_video():
+    global is_paused
+    global is_stopped
+    if is_paused:
+        is_paused = False
+        update_frame()
+
+def pause_video():
+    global is_paused
+    is_paused = True
+
+def stop_video():
+    global is_stopped
+    is_stopped = True
+    cap.release()
+    canvas.delete("all")
+    show_captains_log_page()
+
+def on_close():
+    global is_stopped
+    is_stopped = True
+    cap.release()
+
+camera = picamera.PiCamera()
+camera.resolution = (320,240)
+
+# Add bits inside video player
+canvas = Canvas(player_page, width=720, height=526)
+canvas.pack()
+play_button = tk.Button(player_page, font=(trekFont,30), text="Play", command=play_video, bg='#86DF64', fg='black', padx=5, pady=5)
+pause_button = tk.Button(player_page, font=(trekFont,30), text="Pause",command=pause_video, bg='#86DF64', fg='black', padx=5, pady=5)
+stop_button = tk.Button(player_page, font=(trekFont,30), text="Stop", command=stop_video, bg='#86DF64', fg='black', padx=5, pady=5)
+play_button.pack(side='left')
+pause_button.pack(side='left')
+stop_button.pack(side='left')
+
+
+
+# Add widgets to the status page
+sensor_label = tk.Label(sensor_page, text="Sensor Page", font=(trekFont,30), bg='black', fg='#DAD778')
+sensor_back_button = tk.Button(sensor_page, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+
+header.pack()
+top.pack()
+center.pack()
+tricorder.pack()
+topButtons.pack()
+planet_butt.pack(side='left')
+CL_butt.pack(side='left')
+stat_butt.pack(side='left')
+
+bottomButtons.pack()
+userLabel.pack(side='left')
+sensor_butt.pack(side='left')
+select_butt.pack(side='left')
+input_butt.pack(side='left')
+
+# Add functionality to back buttons
+planet_back_button.config(command=show_main_menu)
+captains_log_back_button.config(command=show_main_menu)
+sensor_back_button.config(command=show_main_menu)
+
+# Add back buttons to respective pages
+pl_header.pack()
+planet_back_button.pack(side='left')
+planet_label.pack(side='left')
+pl_middle.pack()
+temp_frame.pack(side='left')
+temp_title.pack()
+temp_label.pack(side='left')
+temp_symbol.pack(side='left')
+farenheight.pack(side='bottom')
+
+right_pl_frame.pack(side='right')
+
+precip_frame.pack()
+precip_label.pack(side='left')
+precip_var_label.pack(side='left')
+precipPC_label.pack(side='left')
+
+humid_frame.pack(side='bottom')
+humid_label.pack(side='left')
+humid_var_label.pack(side='left')
+humidPC_label.pack(side='left')
+
+sfc_frame.pack(side='bottom')
+sfc_label.pack()
+
+
+cl_header.pack()
+captains_log_back_button.pack(side='left')
+captains_log_label.pack(side='left')
+cl_buttons.append(captains_log_back_button)
+logHolder.pack(side='left')
+logsL.pack(side="left")
+logsR.pack(side="left")
+for new_button in video_buttons:
+    new_button.pack(side="top")
+    cl_buttons.append(new_button)
+
+
+
+
+
+
+sensor_back_button.pack()
+sensor_label.pack()
+
+# Initially show the main menu
+show_main_menu()
+
+
+highlight_button(planet_butt)
+
+window.bind("<Right>", highlight_next_button)
+window.bind("<Left>", highlight_previous_button)
+window.bind("<Up>", highlight_previous_button)
+window.bind("<Down>", highlight_next_button)
+window.bind("<Return>", handle_enter)
+
+window.after(2000,hat)
+window.mainloop()
+GPIO.cleanup()
+
+    
+
+
+
