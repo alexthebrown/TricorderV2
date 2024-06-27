@@ -421,7 +421,7 @@ sensor_label = tk.Label(sensor_page, text="Sensor Page", font=(trekFont,30), bg=
 sensor_back_button = tk.Button(sensor_page, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
 camera_canvas = tk.Canvas(sensor_page, width=720, height=526)
 sensor_label.pack()
-camera_cavas.pack()
+camera_canvas.pack()
 sensor_back_button.pack()
 
 header.pack()
