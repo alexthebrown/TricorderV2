@@ -8,7 +8,7 @@ import time
 from tkinter import ttk, Canvas
 import cv2
 from PIL import Image, ImageTk
-import picamera
+# import picamera
 import io
 
 # Weather Variables
@@ -236,21 +236,21 @@ def start_camera():
     camera.start_preview()
     update_image()
 
-def update_image():
-    camera.capture(stream,format='jpeg', use_video_port=True)
-    stream.seek(0)
-    image = Image.open(stream)
-    image = ImageTk.PhotoImage(image)
-    image_label.configure(image=image)
-    image_label.image = image
-    stream.seek(0)
-    stream.truncate()
-    window.after(100,update_image)
+# def update_image():
+#     camera.capture(stream,format='jpeg', use_video_port=True)
+#     stream.seek(0)
+#     image = Image.open(stream)
+#     image = ImageTk.PhotoImage(image)
+#     image_label.configure(image=image)
+#     image_label.image = image
+#     stream.seek(0)
+#     stream.truncate()
+#     window.after(100,update_image)
 
-def on_closing():
-    camera.stop_preview()
-    camera.close()
-    show_main_menu()
+# def on_closing():
+#     camera.stop_preview()
+#     camera.close()
+#     show_main_menu()
 
 
 def get_weather():
@@ -407,8 +407,8 @@ def on_close():
     is_stopped = True
     cap.release()
 
-camera = picamera.PiCamera()
-camera.resolution = (320,240)
+# camera = picamera.PiCamera()
+# camera.resolution = (320,240)
 
 # Add bits inside video player
 canvas = Canvas(player_page, width=720, height=526)
