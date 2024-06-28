@@ -230,11 +230,11 @@ def show_video_page(path):
     highlight_button(play_button)
     start_video(str(path))
 
-def start_camera():
-    global stream
-    stream = io.BytesIO()
-    camera.start_preview()
-    update_image()
+# def start_camera():
+#     global stream
+#     stream = io.BytesIO()
+#     camera.start_preview()
+#     update_image()
 
 # def update_image():
 #     camera.capture(stream,format='jpeg', use_video_port=True)
@@ -379,7 +379,7 @@ def update_frame():
 
             canvas.create_image(-110,0,anchor=tk.NW,image=frame)
             canvas.image = frame
-            window.after(1, update_frame)
+            window.after(30, update_frame)
         
     # if not is_stopped:
     #     window.after(10, update_frame)
