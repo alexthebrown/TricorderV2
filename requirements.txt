@@ -1,5 +1,4 @@
 Requests==2.32.3
-av==9.2.0
 pillow>=9.0.1
 opencv-python==4.5.3.56
 picamera
