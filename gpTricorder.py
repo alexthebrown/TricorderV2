@@ -205,7 +205,6 @@ def show_sensor_page():
     topButtons.pack_forget()
     bottomButtons.pack_forget()
     currentPage = "sensor"
-    start_camera()
     highlight_button(sensor_back_button)
     sensor_page.pack()
 
