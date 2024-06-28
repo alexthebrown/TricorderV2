@@ -205,7 +205,6 @@ def show_sensor_page():
     topButtons.pack_forget()
     bottomButtons.pack_forget()
     currentPage = "sensor"
-    start_camera()
     highlight_button(sensor_back_button)
     sensor_page.pack()
 
@@ -229,24 +228,6 @@ def show_video_page(path):
     currentPage = "player"
     highlight_button(play_button)
     start_video(str(path))
-
-def start_camera():
-    update_image()
-
-def update_image():
-    ret, frame = camera.read()
-    if ret:
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        img = Image.fromarray(frame)
-        img_tk = ImageTk.PhotoImage(image=img)
-        camera_canvas.create_image(0,0,anchor=tk.NW, image=img_tk)
-        camera_canvas.img_tk = img_tk
-
-
-def close_camera():
-    if hasattr(self,'cap'):
-        camera.release()
-    show_main_menu()
 
 
 def get_weather():
@@ -343,7 +324,7 @@ captains_log_label = tk.Label(cl_header, text="Captain's Log Page", font=(trekFo
 captains_log_back_button = tk.Button(cl_header, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
 
 # Add widgets to the Sensors page
-image_label = tk.Label(sensor_page)
+
 
 enumerate_videos()
 alternator = 0
@@ -403,7 +384,6 @@ def on_close():
     is_stopped = True
     cap.release()
 
-camera = cv2.VideoCapture(0)
 
 # Add bits inside video player
 canvas = Canvas(player_page, width=720, height=526)

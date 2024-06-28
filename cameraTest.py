@@ -1,4 +1,8 @@
-from picamera2 import Picamera2
-picam2 = Picamera2()
-picam2.start(show_preview=True)
-picam2.title_fields = ["ExposureTime", "AnalogueGain"]
+import picamera
+def generate_frames():
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640,480)
+        camera.framerate  = 24
+        stream = io.BytesIO()
+
+        for
