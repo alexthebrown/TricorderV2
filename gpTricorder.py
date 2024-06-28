@@ -8,6 +8,7 @@ import time
 from tkinter import ttk, Canvas
 import cv2
 from PIL import Image, ImageTk
+import picamera
 import io
 
 # Weather Variables
@@ -230,21 +231,25 @@ def show_video_page(path):
     start_video(str(path))
 
 def start_camera():
+    global stream
+    stream = io.BytesIO()
+    camera.start_preview()
     update_image()
 
 def update_image():
-    ret, frame = camera.read()
-    if ret:
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        img = Image.fromarray(frame)
-        img_tk = ImageTk.PhotoImage(image=img)
-        camera_canvas.create_image(0,0,anchor=tk.NW, image=img_tk)
-        camera_canvas.img_tk = img_tk
+    camera.capture(stream,format='jpeg', use_video_port=True)
+    stream.seek(0)
+    image = Image.open(stream)
+    image = ImageTk.PhotoImage(image)
+    image_label.configure(image=image)
+    image_label.image = image
+    stream.seek(0)
+    stream.truncate()
+    window.after(100,update_image)
 
-
-def close_camera():
-    if hasattr(self,'cap'):
-        camera.release()
+def on_closing():
+    camera.stop_preview()
+    camera.close()
     show_main_menu()
 
 
@@ -402,7 +407,8 @@ def on_close():
     is_stopped = True
     cap.release()
 
-camera = cv2.VideoCapture(0)
+camera = picamera.PiCamera()
+camera.resolution = (320,240)
 
 # Add bits inside video player
 canvas = Canvas(player_page, width=720, height=526)
@@ -419,10 +425,6 @@ stop_button.pack(side='left')
 # Add widgets to the status page
 sensor_label = tk.Label(sensor_page, text="Sensor Page", font=(trekFont,30), bg='black', fg='#DAD778')
 sensor_back_button = tk.Button(sensor_page, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
-camera_canvas = tk.Canvas(sensor_page, width=720, height=526)
-sensor_label.pack()
-camera_cavas.pack()
-sensor_back_button.pack()
 
 header.pack()
 top.pack()
@@ -487,7 +489,8 @@ for new_button in video_buttons:
 
 
 
-
+sensor_back_button.pack()
+sensor_label.pack()
 
 # Initially show the main menu
 show_main_menu()
