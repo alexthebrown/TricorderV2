@@ -26,11 +26,11 @@ cl_buttons = []
 clPos = 0
 
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(17, GPIO.IN)  # Up button
-GPIO.setup(18, GPIO.IN)  # Down button
-GPIO.setup(27, GPIO.IN)  # Left button
-GPIO.setup(22, GPIO.IN)  # Right button
-GPIO.setup(23, GPIO.IN)  # Enter button
+GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Up button
+GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Down button
+GPIO.setup(27, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Left button
+GPIO.setup(22, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Right button
+GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Enter button
 
 # Define key mappings
 key_mappings = {
