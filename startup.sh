@@ -1,21 +1,35 @@
-#! /bin/bash
+#!/bin/bash
 
 # Navigate to the desired directory
-cd /home/tricorder/Desktop/Tricorder/TricorderV2 || exit
+cd /home/tricorder/Desktop/Tricorder/TricorderV2 || exit 1
 
-# Perform a git pull to update the repository
-git pull
+# Update the repository
+git pull --ff-only
 
-# Run dependency installer
-pip install -r 'requirements.txt' --break-system-packages
+# Ensure the application uses the primary display
+export DISPLAY="${DISPLAY:-:0}"
 
-# Sudo apt library installs
-sudo apt install python3-opencv -y
-sudo apt-get install python3-pil python3-pil.imagetk
+# Build the C++ version of the app
+make clean
+make
 
+# Configure GPIO wakeup from sleep on the expected BCM pin.
+# Change WAKE_PIN if a different BCM GPIO is used for your wake button.
+WAKE_PIN=23
+if [ -d /sys/class/gpio ]; then
+    if [ ! -d "/sys/class/gpio/gpio${WAKE_PIN}" ]; then
+        echo "${WAKE_PIN}" > /sys/class/gpio/export 2>/dev/null || true
+    fi
+    if [ -e "/sys/class/gpio/gpio${WAKE_PIN}/direction" ]; then
+        echo "in" > "/sys/class/gpio/gpio${WAKE_PIN}/direction" 2>/dev/null || true
+    fi
+    if [ -e "/sys/class/gpio/gpio${WAKE_PIN}/edge" ]; then
+        echo "falling" > "/sys/class/gpio/gpio${WAKE_PIN}/edge" 2>/dev/null || true
+    fi
+    if [ -e "/sys/class/gpio/gpio${WAKE_PIN}/power/wakeup" ]; then
+        echo "enabled" > "/sys/class/gpio/gpio${WAKE_PIN}/power/wakeup" 2>/dev/null || true
+    fi
+fi
 
-# Export display so it runs on the main display
-export DISPLAY=:0
-
-# Run the Python Program
-python gpTricorder.py
+# Run the compiled SDL application
+exec ./sdl_tricorder

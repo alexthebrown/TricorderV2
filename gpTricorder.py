@@ -2,8 +2,6 @@ import tkinter as tk
 import requests as rq
 import pathlib as pl
 import os
-import RPi.GPIO as GPIO
-import multiprocessing
 import time
 from tkinter import ttk, Canvas
 import cv2
@@ -11,26 +9,36 @@ from PIL import Image, ImageTk
 # import picamera
 import io
 
+# Detect GPIO support at runtime so the app can still run on non-RPi systems
+use_gpio = False
+try:
+    import RPi.GPIO as GPIO
+    use_gpio = True
+except (ImportError, RuntimeError):
+    GPIO = None
+
 # Weather Variables
 cWeather = None
 class weather:
-    def __init__(self,temp, precip, humidity, sfc):
+    def __init__(self, temp, precip, humidity, sfc):
         self.temp = temp
         self.humidity = humidity
         self.precip = precip
-        self.sfc = None
+        self.sfc = sfc
+
+VIDEO_DIR = '/home/tricorder/networkdrive/Videos'
+WEATHER_URL = 'https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly'
 video_paths = []
-videoDir = '/home/tricorder/networkdrive/Videos'
 video_buttons = []
 cl_buttons = []
 clPos = 0
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Up button
-GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Down button
-GPIO.setup(27, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Left button
-GPIO.setup(22, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Right button
-GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Enter button
+gpio_states = {}
+if use_gpio:
+    GPIO.setmode(GPIO.BCM)
+    for pin in (17, 18, 27, 22, 23):
+        GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        gpio_states[pin] = GPIO.input(pin)
 
 # Define key mappings
 key_mappings = {
@@ -42,110 +50,86 @@ key_mappings = {
 }
 
 
-def highlight_next_button(event):
-    global currentPage
-    global clPos
-    current_button = window.focus_get()
+def get_button_list_for_page():
     if currentPage == "mm":
-        if current_button == planet_butt:
-            highlight_button(CL_butt)
-        elif current_button == CL_butt:
-            highlight_button(sensor_butt)
-        elif current_button == sensor_butt:
-            highlight_button(stat_butt)
-        elif current_button == sensor_butt:
-            highlight_button(select_butt)
-        elif current_button == select_butt:
-            highlight_button(input_butt)
-        elif current_button == input_butt:
-            highlight_button(planet_butt)
+        return [planet_butt, CL_butt, sensor_butt, stat_butt, select_butt, input_butt]
+    if currentPage == "cl":
+        return cl_buttons
+    if currentPage == "player":
+        return [play_button, pause_button, stop_button]
+    if currentPage == "pl":
+        return [planet_back_button]
+    if currentPage == "sensor":
+        return [sensor_back_button]
+    if currentPage == "status":
+        return [status_back_button]
+    if currentPage == "input":
+        return [input_back_button, input_submit_button]
+    return []
 
-    elif(currentPage == "pl"):
-        pass
-    elif(currentPage == "cl"):
-        if clPos == len(cl_buttons) - 1:
-            clPos = 0
-        elif clPos == 0:
-            clPos = clPos + 1
-        else:
-            clPos = clPos + 1
-        highlight_button(cl_buttons[clPos])
 
-    elif(currentPage == "sensor"):
-        pass
-
-    elif(currentPage == "player"):
-        if current_button == play_button:
-            highlight_button(pause_button)
-        elif current_button == pause_button:
-            highlight_button(stop_button)
-        elif current_button == stop_button:
-            highlight_button(play_button)
-
-def highlight_previous_button(event):
-    global currentPage
-    global clPos
+def highlight_next_button(event=None):
+    buttons = get_button_list_for_page()
+    if not buttons:
+        return
     current_button = window.focus_get()
-    if currentPage == "mm":
-        if current_button == planet_butt:
-            highlight_button(input_butt)
-        elif current_button == CL_butt:
-            highlight_button(planet_butt)
-        elif current_button == sensor_butt:
-            highlight_button(CL_butt)
-        elif current_button == stat_butt:
-            highlight_button(sensor_butt)
-        elif current_button == select_butt:
-            highlight_button(sensor_butt)
-        elif current_button == input_butt:
-            highlight_button(select_butt)
-    elif(currentPage == "pl"):
-        pass
-    elif(currentPage == "cl"):
-        if clPos == 0: # If this is the back button
-            clPos = len(cl_buttons) - 1
-        else:
-            clPos = clPos - 1
-        highlight_button(cl_buttons[clPos])
-    elif(currentPage == "sensor"):
-        pass
+    try:
+        index = buttons.index(current_button)
+        next_button = buttons[(index + 1) % len(buttons)]
+    except ValueError:
+        next_button = buttons[0]
+    highlight_button(next_button)
 
-    elif(currentPage == "player"):
-        if current_button == play_button:
-            highlight_button(stop_button)
-        elif current_button == pause_button:
-            highlight_button(play_button)
-        elif current_button == stop_button:
-            highlight_button(pause_button)
 
-def handle_enter(event):
+def highlight_previous_button(event=None):
+    buttons = get_button_list_for_page()
+    if not buttons:
+        return
+    current_button = window.focus_get()
+    try:
+        index = buttons.index(current_button)
+        previous_button = buttons[(index - 1) % len(buttons)]
+    except ValueError:
+        previous_button = buttons[-1]
+    highlight_button(previous_button)
+
+
+def handle_enter(event=None):
     active_button = window.focus_get()
     if active_button:
-        active_button.config(relief=tk.SUNKEN)  # Simulate button click
-        active_button.invoke()  # Execute the button's associated command
+        active_button.config(relief=tk.SUNKEN)
+        active_button.invoke()
 
 def hat():
-    # Read button states
-        up_state = GPIO.input(17)
-        down_state = GPIO.input(18)
-        left_state = GPIO.input(27)
-        right_state = GPIO.input(22)
-        enter_state = GPIO.input(23)
-        
-        # Simulate key presses
-        if up_state == GPIO.LOW:
-            highlight_previous_button(None)
-            
-        elif down_state == GPIO.LOW:
-            highlight_next_button(None)
-            
-        elif left_state == GPIO.LOW:
-            highlight_previous_button(None)
-        elif right_state == GPIO.LOW:
-            highlight_next_button(None)
-        elif enter_state == GPIO.LOW:
-            handle_enter(None)
-        window.after(250,hat)    
+    if not use_gpio:
+        window.after(100, hat)
+        return
+
+    inputs = {
+        17: GPIO.input(17),
+        18: GPIO.input(18),
+        27: GPIO.input(27),
+        22: GPIO.input(22),
+        23: GPIO.input(23)
+    }
+
+    pressed = False
+    for pin, value in inputs.items():
+        previous = gpio_states.get(pin, GPIO.HIGH)
+        if previous == GPIO.HIGH and value == GPIO.LOW:
+            pressed = True
+            if pin in (17, 27):
+                highlight_previous_button()
+            elif pin in (18, 22):
+                highlight_next_button()
+            elif pin == 23:
+                handle_enter()
+        gpio_states[pin] = value
+
+    if pressed:
+        window.after(200, hat)
+    else:
+        window.after(100, hat)
 
 def highlight_button(button):
     planet_butt.config(relief=tk.RAISED)
@@ -169,6 +153,7 @@ def show_planet_page():
     center.pack_forget()
     topButtons.pack_forget()
     bottomButtons.pack_forget()
+    global cWeather
     cWeather = get_weather()
     tempVar.set(cWeather.temp)
     humVar.set(cWeather.humidity)
@@ -178,26 +163,80 @@ def show_planet_page():
     highlight_button(planet_back_button)
     planet_page.pack(side='left')
 
-def enumerate_videos():
-    path = pl.Path(videoDir)
-    for item in path.iterdir():
-        if item.is_file():
-            if item.name.endswith('.mp4'):
-                video_paths.append(item)
-                print(item)
 
-
-def show_captains_log_page():
+def show_status_page():
     global currentPage
     header.pack_forget()
     center.pack_forget()
     topButtons.pack_forget()
     bottomButtons.pack_forget()
+    currentPage = "status"
+    refresh_status_text()
+    highlight_button(status_back_button)
+    status_page.pack(side='left', fill='both', expand=True)
+
+
+def show_input_page():
+    global currentPage
+    header.pack_forget()
+    center.pack_forget()
+    topButtons.pack_forget()
+    bottomButtons.pack_forget()
+    currentPage = "input"
+    highlight_button(input_submit_button)
+    input_page.pack(side='left', fill='both', expand=True)
+
+
+def refresh_status_text():
+    now = time.strftime('%Y-%m-%d %H:%M:%S')
+    video_count = len(video_paths)
+    status_result = (
+        f"Current Time: {now}\n"
+        f"Video Count: {video_count}\n"
+        f"Weather API: {'Connected' if cWeather else 'Unknown'}\n"
+        f"GPIO Support: {'Enabled' if use_gpio else 'Disabled'}\n"
+        f"App Version: TricorderV2"
+    )
+    status_text.config(text=status_result)
+
+
+def submit_input():
+    command = input_entry.get().strip()
+    if not command:
+        input_result.config(text="Please type a command or note above.")
+        return
+    if command.lower() in ('status', 'refresh', 'weather'):
+        refresh_status_text()
+        input_result.config(text=f"Command received: {command}. Status refreshed.")
+    else:
+        input_result.config(text=f"Stored note: {command}")
+    input_entry.delete(0, tk.END)
+
+
+def enumerate_videos():
+    path = pl.Path(VIDEO_DIR)
+    if not path.exists():
+        return
+    for item in path.iterdir():
+        if item.is_file() and item.name.endswith('.mp4'):
+            video_paths.append(item)
+            print(item)
+
+
+def show_captains_log_page():
+    global currentPage, clPos
+    header.pack_forget()
+    center.pack_forget()
+    topButtons.pack_forget()
+    bottomButtons.pack_forget()
     player_page.pack_forget()
+    status_page.pack_forget()
+    input_page.pack_forget()
     clPos = 0
     currentPage = "cl"
     highlight_button(captains_log_back_button)
     captains_log_page.pack()
+
 
 def show_sensor_page():
     global currentPage
@@ -205,26 +244,33 @@ def show_sensor_page():
     center.pack_forget()
     topButtons.pack_forget()
     bottomButtons.pack_forget()
+    status_page.pack_forget()
+    input_page.pack_forget()
     currentPage = "sensor"
     highlight_button(sensor_back_button)
     sensor_page.pack()
+
 
 def show_main_menu():
     global currentPage
     planet_page.pack_forget()
     captains_log_page.pack_forget()
     sensor_page.pack_forget()
+    player_page.pack_forget()
+    status_page.pack_forget()
+    input_page.pack_forget()
     header.pack()
     center.pack()
     topButtons.pack()
     bottomButtons.pack()
     currentPage = "mm"
-
     highlight_button(planet_butt)
 
 def show_video_page(path):
     global currentPage
     captains_log_page.pack_forget()
+    status_page.pack_forget()
+    input_page.pack_forget()
     player_page.pack()
     currentPage = "player"
     highlight_button(play_button)
@@ -254,8 +300,7 @@ def show_video_page(path):
 
 
 def get_weather():
-    URL = "https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly"
-    r = rq.get(url=URL)
+    r = rq.get(url=WEATHER_URL)
     data = r.json()
     shortForecast = data['properties']['periods'][0]['shortForecast']
     temp = data['properties']['periods'][0]['temperature']
@@ -296,15 +341,17 @@ CL_butt = tk.Button(topButtons, font=(trekFont,39), text="CAPTAIN'S LOG", bg='#8
 sensor_butt = tk.Button(topButtons, font=(trekFont,39), text="SENSORS", bg='#86DF64', fg='black', padx=5, pady=5, command=show_sensor_page)
 
 userLabel = tk.Label(bottomButtons, text=username, font=(trekFont,39), bg='black', fg='#DAD778', pady=9)
-stat_butt = tk.Button(bottomButtons, font=(trekFont,39), text="STATUS", bg='#86DF64', fg='black', padx=5, pady=5)
-select_butt = tk.Button(bottomButtons, font=(trekFont,39), text="SELECT", bg='#86DF64', fg='black', padx=5, pady=5)
-input_butt = tk.Button(bottomButtons, font=(trekFont,39), text="INPUT", bg='#86DF64', fg='black', padx=5, pady=5)
+stat_butt = tk.Button(bottomButtons, font=(trekFont,39), text="STATUS", bg='#86DF64', fg='black', padx=5, pady=5, command=show_status_page)
+select_butt = tk.Button(bottomButtons, font=(trekFont,39), text="SELECT", bg='#86DF64', fg='black', padx=5, pady=5, command=show_sensor_page)
+input_butt = tk.Button(bottomButtons, font=(trekFont,39), text="INPUT", bg='#86DF64', fg='black', padx=5, pady=5, command=show_input_page)
 
 # Create separate frames for each page
 planet_page = tk.Frame(window, bg='black')
 captains_log_page = tk.Frame(window, bg='black')
 sensor_page = tk.Frame(window, bg='black')
 player_page = tk.Frame(window, bg='black')
+status_page = tk.Frame(window, bg='black')
+input_page = tk.Frame(window, bg='black')
 
 # Planet Internal Frames
 pl_header = tk.Frame(planet_page,bg='black',padx=5,pady=5)
@@ -334,6 +381,7 @@ precip_var_label = tk.Label(precip_frame, font=(trekFont,30),textvariable=precVa
 precipPC_label = tk.Label(precip_frame, font=(trekFont,30), text='%', fg='black', bg='#DAD778')
 
 sfc_label = tk.Label(sfc_frame, font=(trekFont,30), textvariable=sfcVar, fg='#DAD778', bg='black')
+refresh_weather_button = tk.Button(planet_page, font=(trekFont,30), text="Refresh", bg='#86DF64', fg='black', padx=5, pady=5, command=show_planet_page)
                        
 # Captain's Log Internal Frames
 
@@ -348,6 +396,18 @@ captains_log_back_button = tk.Button(cl_header, font=(trekFont,30), text="Back",
 
 # Add widgets to the Sensors page
 image_label = tk.Label(sensor_page)
+
+# Add status page widgets
+status_label = tk.Label(status_page, text="Status Overview", font=(trekFont,60), bg='black', fg='#DAD778')
+status_back_button = tk.Button(status_page, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+status_text = tk.Label(status_page, font=(trekFont,26), text="", bg='black', fg='#DAD778', justify='left')
+
+# Add input page widgets
+input_label = tk.Label(input_page, text="Command Console", font=(trekFont,60), bg='black', fg='#DAD778')
+input_back_button = tk.Button(input_page, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+input_entry = tk.Entry(input_page, font=(trekFont,28), width=24, bg='#DAD778', fg='black')
+input_submit_button = tk.Button(input_page, font=(trekFont,30), text="Submit", bg='#86DF64', fg='black', padx=5, pady=5)
+input_result = tk.Label(input_page, font=(trekFont,26), text="Enter a command or note.", bg='black', fg='#DAD778', wraplength=680, justify='left')
 
 enumerate_videos()
 alternator = 0
@@ -405,7 +465,9 @@ def stop_video():
 def on_close():
     global is_stopped
     is_stopped = True
-    cap.release()
+    if 'cap' in globals() and cap is not None:
+        cap.release()
+    window.destroy()
 
 # camera = picamera.PiCamera()
 # camera.resolution = (320,240)
@@ -445,6 +507,9 @@ input_butt.pack(side='left')
 planet_back_button.config(command=show_main_menu)
 captains_log_back_button.config(command=show_main_menu)
 sensor_back_button.config(command=show_main_menu)
+status_back_button.config(command=show_main_menu)
+input_back_button.config(command=show_main_menu)
+input_submit_button.config(command=submit_input)
 
 # Add back buttons to respective pages
 pl_header.pack()
@@ -471,6 +536,7 @@ humidPC_label.pack(side='left')
 
 sfc_frame.pack(side='bottom')
 sfc_label.pack()
+refresh_weather_button.pack(pady=15)
 
 
 cl_header.pack()
@@ -489,6 +555,17 @@ for new_button in video_buttons:
 
 
 
+status_label.pack(pady=20)
+status_back_button.pack(side='left', pady=10)
+status_text.pack(pady=20, padx=20)
+
+input_label.pack(pady=20)
+input_back_button.pack(side='left', pady=10)
+input_entry.pack(pady=20)
+input_submit_button.pack(pady=10)
+input_result.pack(pady=15, padx=20)
+
+
 sensor_back_button.pack()
 sensor_label.pack()
 
@@ -503,10 +580,13 @@ window.bind("<Left>", highlight_previous_button)
 window.bind("<Up>", highlight_previous_button)
 window.bind("<Down>", highlight_next_button)
 window.bind("<Return>", handle_enter)
+window.bind("<Escape>", lambda event: show_main_menu())
 
-window.after(2000,hat)
+window.protocol("WM_DELETE_WINDOW", on_close)
+window.after(200, hat)
 window.mainloop()
-GPIO.cleanup()
+if use_gpio:
+    GPIO.cleanup()
 
     
 
