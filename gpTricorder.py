@@ -3,11 +3,14 @@ import requests as rq
 import pathlib as pl
 import os
 import time
+import re
 from tkinter import ttk, Canvas
 import cv2
 from PIL import Image, ImageTk
 # import picamera
 import io
+from html.parser import HTMLParser
+from datetime import datetime
 
 # Detect GPIO support at runtime so the app can still run on non-RPi systems
 use_gpio = False
@@ -20,11 +23,22 @@ except (ImportError, RuntimeError):
 # Weather Variables
 cWeather = None
 class weather:
-    def __init__(self, temp, precip, humidity, sfc):
+    def __init__(self, temp, precip, humidity, sfc, wind_speed="", wind_dir="", detailed=""):
         self.temp = temp
         self.humidity = humidity
         self.precip = precip
         self.sfc = sfc
+        self.wind_speed = wind_speed
+        self.wind_dir = wind_dir
+        self.detailed = detailed
+
+class RosterEvent:
+    def __init__(self, date="", start="", title="", location="", details=""):
+        self.date = date
+        self.start = start
+        self.title = title
+        self.location = location
+        self.details = details
 
 VIDEO_DIR = '/home/tricorder/networkdrive/Videos'
 WEATHER_URL = 'https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly'
@@ -52,7 +66,7 @@ key_mappings = {
 
 def get_button_list_for_page():
     if currentPage == "mm":
-        return [planet_butt, CL_butt, sensor_butt, stat_butt, select_butt, input_butt]
+        return [planet_butt, CL_butt, sensor_butt, stat_butt, select_butt, input_butt, roster_butt]
     if currentPage == "cl":
         return cl_buttons
     if currentPage == "player":
@@ -65,6 +79,8 @@ def get_button_list_for_page():
         return [status_back_button]
     if currentPage == "input":
         return [input_back_button, input_submit_button]
+    if currentPage == "roster":
+        return [roster_back_button, roster_refresh_button]
     return []
 
 
@@ -159,6 +175,11 @@ def show_planet_page():
     humVar.set(cWeather.humidity)
     sfcVar.set(cWeather.sfc)
     precVar.set(cWeather.precip)
+    # Display detailed forecast with wind info
+    forecast_detail = cWeather.detailed if cWeather.detailed else cWeather.sfc
+    if cWeather.wind_speed or cWeather.wind_dir:
+        forecast_detail += f"\nWind: {cWeather.wind_dir} {cWeather.wind_speed}"
+    sfc_label.config(text=forecast_detail)
     currentPage = "pl"
     highlight_button(planet_back_button)
     planet_page.pack(side='left')
@@ -185,6 +206,21 @@ def show_input_page():
     currentPage = "input"
     highlight_button(input_submit_button)
     input_page.pack(side='left', fill='both', expand=True)
+
+
+def show_roster_page():
+    global currentPage
+    header.pack_forget()
+    center.pack_forget()
+    topButtons.pack_forget()
+    bottomButtons.pack_forget()
+    player_page.pack_forget()
+    status_page.pack_forget()
+    input_page.pack_forget()
+    currentPage = "roster"
+    refresh_roster()
+    highlight_button(roster_back_button)
+    roster_page.pack(side='left', fill='both', expand=True)
 
 
 def refresh_status_text():
@@ -259,6 +295,7 @@ def show_main_menu():
     player_page.pack_forget()
     status_page.pack_forget()
     input_page.pack_forget()
+    roster_page.pack_forget()
     header.pack()
     center.pack()
     topButtons.pack()
@@ -300,13 +337,80 @@ def show_video_page(path):
 
 
 def get_weather():
-    r = rq.get(url=WEATHER_URL)
-    data = r.json()
-    shortForecast = data['properties']['periods'][0]['shortForecast']
-    temp = data['properties']['periods'][0]['temperature']
-    precip = data['properties']['periods'][0]['probabilityOfPrecipitation']['value']
-    humidity = data['properties']['periods'][0]['relativeHumidity']['value']
-    return weather(temp,precip,humidity,shortForecast)
+    try:
+        r = rq.get(url=WEATHER_URL, timeout=10)
+        data = r.json()
+        period = data['properties']['periods'][0]
+        shortForecast = period.get('shortForecast', 'Unknown')
+        temp = period.get('temperature', 0)
+        precip_obj = period.get('probabilityOfPrecipitation', {})
+        precip = precip_obj.get('value', 0) if isinstance(precip_obj, dict) else 0
+        humidity_obj = period.get('relativeHumidity', {})
+        humidity = humidity_obj.get('value', 0) if isinstance(humidity_obj, dict) else 0
+        wind_speed = period.get('windSpeed', '')
+        wind_dir = period.get('windDirection', '')
+        detailed = period.get('detailedForecast', shortForecast)
+        return weather(temp, precip, humidity, shortForecast, wind_speed, wind_dir, detailed)
+    except Exception as e:
+        print(f"Weather fetch error: {e}")
+        return weather(0, 0, 0, "Error", "", "", "Unable to fetch weather")
+
+def get_roster():
+    """Fetch and parse TrekFest event schedule"""
+    events = []
+    try:
+        r = rq.get('https://trekfest.org/event-schedule', timeout=15)
+        r.raise_for_status()
+        html = r.text
+        
+        # Extract text blocks from HTML
+        text = re.sub(r'<[^>]+>', '\n', html)
+        text = re.sub(r'&nbsp;', ' ', text)
+        text = re.sub(r'&amp;', '&', text)
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        
+        # Parse events: look for time markers and dates
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            
+            # Look for time markers (e.g., "12:30 PM")
+            if re.search(r'\d{1,2}:\d{2}\s*(AM|PM|am|pm)', line):
+                start_time = line.strip()
+                event_title = ""
+                event_location = ""
+                
+                # Next few lines are title and location
+                if i + 1 < len(lines):
+                    event_title = lines[i + 1].strip()
+                if i + 2 < len(lines) and not re.search(r'\d{1,2}:\d{2}', lines[i + 2]):
+                    event_location = lines[i + 2].strip()
+                
+                if event_title:
+                    event = RosterEvent(
+                        date="TrekFest 2026",
+                        start=start_time,
+                        title=event_title,
+                        location=event_location,
+                        details=""
+                    )
+                    events.append(event)
+                    i += 3
+                else:
+                    i += 1
+            else:
+                i += 1
+        
+        return events
+    except Exception as e:
+        print(f"Roster fetch error: {e}")
+        return []
+
+roster_events = []
+def refresh_roster():
+    global roster_events
+    roster_events = get_roster()
+    update_roster_display()
 
 window = tk.Tk(className='Tricorder')
 window.attributes('-fullscreen', False)
@@ -344,6 +448,7 @@ userLabel = tk.Label(bottomButtons, text=username, font=(trekFont,39), bg='black
 stat_butt = tk.Button(bottomButtons, font=(trekFont,39), text="STATUS", bg='#86DF64', fg='black', padx=5, pady=5, command=show_status_page)
 select_butt = tk.Button(bottomButtons, font=(trekFont,39), text="SELECT", bg='#86DF64', fg='black', padx=5, pady=5, command=show_sensor_page)
 input_butt = tk.Button(bottomButtons, font=(trekFont,39), text="INPUT", bg='#86DF64', fg='black', padx=5, pady=5, command=show_input_page)
+roster_butt = tk.Button(topButtons, font=(trekFont,39), text="SCHEDULE", bg='#86DF64', fg='black', padx=5, pady=5, command=show_roster_page)
 
 # Create separate frames for each page
 planet_page = tk.Frame(window, bg='black')
@@ -352,6 +457,7 @@ sensor_page = tk.Frame(window, bg='black')
 player_page = tk.Frame(window, bg='black')
 status_page = tk.Frame(window, bg='black')
 input_page = tk.Frame(window, bg='black')
+roster_page = tk.Frame(window, bg='black')
 
 # Planet Internal Frames
 pl_header = tk.Frame(planet_page,bg='black',padx=5,pady=5)
@@ -408,6 +514,29 @@ input_back_button = tk.Button(input_page, font=(trekFont,30), text="Back", bg='#
 input_entry = tk.Entry(input_page, font=(trekFont,28), width=24, bg='#DAD778', fg='black')
 input_submit_button = tk.Button(input_page, font=(trekFont,30), text="Submit", bg='#86DF64', fg='black', padx=5, pady=5)
 input_result = tk.Label(input_page, font=(trekFont,26), text="Enter a command or note.", bg='black', fg='#DAD778', wraplength=680, justify='left')
+
+# Add roster page widgets
+roster_header = tk.Frame(roster_page, bg='black', padx=14, pady=3)
+roster_content_frame = tk.Frame(roster_page, bg='black', padx=14, pady=3)
+roster_scroll = tk.Frame(roster_content_frame, bg='black')
+
+roster_label = tk.Label(roster_header, text="Duty Roster", font=(trekFont,75), bg='black', fg='#DAD778', padx=5)
+roster_back_button = tk.Button(roster_header, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+roster_refresh_button = tk.Button(roster_header, font=(trekFont,30), text="Refresh", bg='#86DF64', fg='black', padx=5, pady=5)
+roster_text = tk.Label(roster_scroll, font=(trekFont,20), text="Loading events...", bg='black', fg='#DAD778', justify='left', wraplength=650)
+
+def update_roster_display():
+    """Update the roster display with fetched events"""
+    if not roster_events:
+        roster_text.config(text="No events found for TrekFest.")
+    else:
+        text_output = ""
+        for event in roster_events[:15]:  # Show first 15 events
+            text_output += f"{event.start} - {event.title}\n"
+            if event.location:
+                text_output += f"  Location: {event.location}\n"
+            text_output += "\n"
+        roster_text.config(text=text_output if text_output else "No events available.")
 
 enumerate_videos()
 alternator = 0
@@ -496,6 +625,7 @@ topButtons.pack()
 planet_butt.pack(side='left')
 CL_butt.pack(side='left')
 stat_butt.pack(side='left')
+roster_butt.pack(side='left')
 
 bottomButtons.pack()
 userLabel.pack(side='left')
@@ -509,6 +639,8 @@ captains_log_back_button.config(command=show_main_menu)
 sensor_back_button.config(command=show_main_menu)
 status_back_button.config(command=show_main_menu)
 input_back_button.config(command=show_main_menu)
+roster_back_button.config(command=show_main_menu)
+roster_refresh_button.config(command=refresh_roster)
 input_submit_button.config(command=submit_input)
 
 # Add back buttons to respective pages
@@ -568,6 +700,15 @@ input_result.pack(pady=15, padx=20)
 
 sensor_back_button.pack()
 sensor_label.pack()
+
+# Pack roster page widgets
+roster_header.pack()
+roster_back_button.pack(side='left')
+roster_label.pack(side='left')
+roster_refresh_button.pack(side='left')
+roster_content_frame.pack(fill='both', expand=True)
+roster_scroll.pack(fill='both', expand=True)
+roster_text.pack(pady=20, padx=20)
 
 # Initially show the main menu
 show_main_menu()

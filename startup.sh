@@ -3,15 +3,12 @@
 # Navigate to the desired directory
 cd /home/tricorder/Desktop/Tricorder/TricorderV2 || exit 1
 
-# Update the repository
+# Update the repository and install Python dependencies if needed
 git pull --ff-only
+python3 -m pip install -r requirements.txt --break-system-packages
 
 # Ensure the application uses the primary display
 export DISPLAY="${DISPLAY:-:0}"
-
-# Build the C++ version of the app
-make clean
-make
 
 # Configure GPIO wakeup from sleep on the expected BCM pin.
 # Change WAKE_PIN if a different BCM GPIO is used for your wake button.
@@ -31,5 +28,5 @@ if [ -d /sys/class/gpio ]; then
     fi
 fi
 
-# Run the compiled SDL application
-exec ./sdl_tricorder
+# Run the Python program
+python3 gpTricorder.py
