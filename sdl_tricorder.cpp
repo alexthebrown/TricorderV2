@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <map>
 #include <regex>
 #include <thread>
 #include <iostream>
@@ -21,6 +22,12 @@ static const int WINDOW_WIDTH = 720;
 static const int WINDOW_HEIGHT = 576;
 static const char* VIDEO_DIR = "videos";
 static const char* FONT_PATHS[] = {
+    "/home/tricorder/.fonts/Trek.ttf",
+    "/home/tricorder/.local/share/fonts/Trek.ttf",
+    "/home/tricorder/Desktop/Tricorder/TricorderV2/fonts/Trek.ttf",
+    "/home/tricorder/Desktop/Tricorder/TricorderV2/Trek.ttf",
+    "/home/tricorder/TricorderV2/fonts/Trek.ttf",
+    "/home/tricorder/TricorderV2/Trek.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/truetype/freefont/FreeSans.ttf"
 };
@@ -118,9 +125,14 @@ private:
     int selectedVideoIndex_ = -1;
     bool playingVideo_ = false;
     bool gpioAvailable_ = false;
+    std::map<int, std::string> gpioValuePaths_;
+    std::map<int, int> gpioStates_;
     WeatherInfo weather_;
     bool running_ = false;
 
+    bool initializeGPIO();
+    void pollGPIO();
+    bool readGPIOValue(const std::string& path, int& value) const;
     bool fetchWeather();
     bool fetchRoster();
     std::vector<std::string> extractTextBlocks(const std::string& html) const;
@@ -158,7 +170,7 @@ bool App::initialize() {
     if (!initializeFonts()) return false;
     loadVideos();
 
-    gpioAvailable_ = fs::exists("/sys/class/gpio");
+    gpioAvailable_ = initializeGPIO();
     weather_.status = "Not loaded";
     running_ = true;
 
@@ -205,7 +217,7 @@ bool App::initializeSDL() {
         std::cerr << "SDL_Init error: " << SDL_GetError() << "\n";
         return false;
     }
-    window_ = SDL_CreateWindow("Tricorder", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+    window_ = SDL_CreateWindow("Tricorder", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_SHOWN);
     if (!window_) {
         std::cerr << "SDL_CreateWindow error: " << SDL_GetError() << "\n";
         return false;
@@ -215,6 +227,7 @@ bool App::initializeSDL() {
         std::cerr << "SDL_CreateRenderer error: " << SDL_GetError() << "\n";
         return false;
     }
+    SDL_RenderSetLogicalSize(renderer_, WINDOW_WIDTH, WINDOW_HEIGHT);
     return true;
 }
 
@@ -225,11 +238,21 @@ bool App::initializeFonts() {
     }
     std::string fontPathStorage;
     const char* fontPath = nullptr;
-    for (const char* path : FONT_PATHS) {
-        if (fileExists(path)) {
-            fontPathStorage = path;
+    if (const char* envFont = std::getenv("TRICORDER_FONT")) {
+        if (fileExists(envFont)) {
+            fontPathStorage = envFont;
             fontPath = fontPathStorage.c_str();
-            break;
+        } else {
+            std::cerr << "TRICORDER_FONT is set but file not found: " << envFont << "\n";
+        }
+    }
+    if (!fontPath) {
+        for (const char* path : FONT_PATHS) {
+            if (fileExists(path)) {
+                fontPathStorage = path;
+                fontPath = fontPathStorage.c_str();
+                break;
+            }
         }
     }
     if (!fontPath) {
@@ -275,6 +298,61 @@ bool App::initializeFonts() {
     }
     std::cout << "Using font: " << fontPath << "\n";
     return true;
+}
+
+bool App::initializeGPIO() {
+    if (!fs::exists("/sys/class/gpio")) {
+        return false;
+    }
+
+    const std::vector<int> pins = {17, 18, 27, 22, 23};
+    for (int pin : pins) {
+        fs::path valuePath = fs::path("/sys/class/gpio/gpio") / std::to_string(pin) / "value";
+        if (!fs::exists(valuePath)) {
+            continue;
+        }
+        gpioValuePaths_[pin] = valuePath.string();
+        int value = 1;
+        if (!readGPIOValue(gpioValuePaths_[pin], value)) {
+            value = 1;
+        }
+        gpioStates_[pin] = value;
+    }
+    return !gpioValuePaths_.empty();
+}
+
+bool App::readGPIOValue(const std::string& path, int& value) const {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        return false;
+    }
+    char c = '1';
+    file >> c;
+    if (file.fail()) {
+        return false;
+    }
+    value = (c == '0' ? 0 : 1);
+    return true;
+}
+
+void App::pollGPIO() {
+    for (const auto& kv : gpioValuePaths_) {
+        int current = 1;
+        if (!readGPIOValue(kv.second, current)) {
+            continue;
+        }
+        int previous = gpioStates_[kv.first];
+        if (previous == 1 && current == 0) {
+            if (kv.first == 17 || kv.first == 27) {
+                navigate(-1);
+            } else if (kv.first == 18 || kv.first == 22) {
+                navigate(1);
+            } else if (kv.first == 23) {
+                invokeSelected();
+            }
+        }
+        gpioStates_[kv.first] = current;
+    }
 }
 
 void App::loadVideos() {
@@ -1103,6 +1181,10 @@ int App::run() {
             } else {
                 handleEvent(event);
             }
+        }
+
+        if (gpioAvailable_) {
+            pollGPIO();
         }
 
         render();
