@@ -296,7 +296,7 @@ def show_sensor_page():
     input_page.pack_forget()
     currentPage = "sensor"
     refresh_roster()
-    highlight_button(sensor_back_button)
+    highlight_button(roster_back_button)
     roster_page.pack(side='left', fill='both', expand=True)
 
 
@@ -528,6 +528,18 @@ input_submit_button = tk.Button(input_page, font=(trekFont,30), text="Submit", b
 input_result = tk.Label(input_page, font=(trekFont,26), text="Enter a command or note.", bg='black', fg='#DAD778', wraplength=680, justify='left')
 
 # Add roster page widgets
+def roster_prev_page():
+    global roster_page_num
+    roster_page_num = max(0, roster_page_num - 1)
+    update_roster_display()
+
+def roster_next_page():
+    global roster_page_num
+    events_per_page = 5
+    total_pages = (len(roster_events) + events_per_page - 1) // events_per_page
+    roster_page_num = min(roster_page_num + 1, total_pages - 1)
+    update_roster_display()
+
 roster_header = tk.Frame(roster_page, bg='black', padx=14, pady=3)
 roster_content_frame = tk.Frame(roster_page, bg='black', padx=14, pady=3)
 roster_scroll = tk.Frame(roster_content_frame, bg='black')
@@ -567,18 +579,6 @@ def update_roster_display():
     
     roster_text.config(text=text_output if text_output else "No events available.")
     roster_page_label.config(text=f"Page {roster_page_num + 1} of {total_pages}")
-
-def roster_prev_page():
-    global roster_page_num
-    roster_page_num = max(0, roster_page_num - 1)
-    update_roster_display()
-
-def roster_next_page():
-    global roster_page_num
-    events_per_page = 5
-    total_pages = (len(roster_events) + events_per_page - 1) // events_per_page
-    roster_page_num = min(roster_page_num + 1, total_pages - 1)
-    update_roster_display()
 
 enumerate_videos()
 alternator = 0
