@@ -66,7 +66,7 @@ key_mappings = {
 
 def get_button_list_for_page():
     if currentPage == "mm":
-        return [planet_butt, CL_butt, sensor_butt, stat_butt, select_butt, input_butt]
+        return [planet_butt, CL_butt, sensor_butt, stat_butt, select_butt, input_butt, roster_butt]
     if currentPage == "cl":
         return cl_buttons
     if currentPage == "player":
@@ -74,11 +74,13 @@ def get_button_list_for_page():
     if currentPage == "pl":
         return [planet_back_button]
     if currentPage == "sensor":
-        return [roster_back_button, roster_refresh_button]
+        return [sensor_back_button]
     if currentPage == "status":
         return [status_back_button]
     if currentPage == "input":
         return [input_back_button, input_submit_button]
+    if currentPage == "roster":
+        return [roster_back_button, roster_refresh_button]
     return []
 
 
@@ -206,7 +208,19 @@ def show_input_page():
     input_page.pack(side='left', fill='both', expand=True)
 
 
-
+def show_roster_page():
+    global currentPage
+    header.pack_forget()
+    center.pack_forget()
+    topButtons.pack_forget()
+    bottomButtons.pack_forget()
+    player_page.pack_forget()
+    status_page.pack_forget()
+    input_page.pack_forget()
+    currentPage = "roster"
+    refresh_roster()
+    highlight_button(roster_back_button)
+    roster_page.pack(side='left', fill='both', expand=True)
 
 
 def refresh_status_text():
@@ -269,15 +283,15 @@ def show_sensor_page():
     status_page.pack_forget()
     input_page.pack_forget()
     currentPage = "sensor"
-    refresh_roster()
     highlight_button(sensor_back_button)
-    roster_page.pack(side='left', fill='both', expand=True)
+    sensor_page.pack()
 
 
 def show_main_menu():
     global currentPage
     planet_page.pack_forget()
     captains_log_page.pack_forget()
+    sensor_page.pack_forget()
     player_page.pack_forget()
     status_page.pack_forget()
     input_page.pack_forget()
@@ -434,6 +448,7 @@ userLabel = tk.Label(bottomButtons, text=username, font=(trekFont,39), bg='black
 stat_butt = tk.Button(bottomButtons, font=(trekFont,39), text="STATUS", bg='#86DF64', fg='black', padx=5, pady=5, command=show_status_page)
 select_butt = tk.Button(bottomButtons, font=(trekFont,39), text="SELECT", bg='#86DF64', fg='black', padx=5, pady=5, command=show_sensor_page)
 input_butt = tk.Button(bottomButtons, font=(trekFont,39), text="INPUT", bg='#86DF64', fg='black', padx=5, pady=5, command=show_input_page)
+roster_butt = tk.Button(topButtons, font=(trekFont,39), text="SCHEDULE", bg='#86DF64', fg='black', padx=5, pady=5, command=show_roster_page)
 
 # Create separate frames for each page
 planet_page = tk.Frame(window, bg='black')
@@ -610,6 +625,7 @@ topButtons.pack()
 planet_butt.pack(side='left')
 CL_butt.pack(side='left')
 stat_butt.pack(side='left')
+roster_butt.pack(side='left')
 
 bottomButtons.pack()
 userLabel.pack(side='left')
