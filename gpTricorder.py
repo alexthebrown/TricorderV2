@@ -85,29 +85,36 @@ def get_button_list_for_page():
 
 def highlight_next_button(event=None):
     buttons = get_button_list_for_page()
+
     if not buttons:
         return
+
     current_button = window.focus_get()
-    try:
-        index = buttons.index(current_button)
-        next_button = buttons[(index + 1) % len(buttons)]
-    except ValueError:
-        next_button = buttons[0]
+
+    if current_button not in buttons:
+        highlight_button(buttons[0])
+        return
+
+    index = buttons.index(current_button)
+    next_button = buttons[(index + 1) % len(buttons)]
     highlight_button(next_button)
 
 
 def highlight_previous_button(event=None):
     buttons = get_button_list_for_page()
+
     if not buttons:
         return
-    current_button = window.focus_get()
-    try:
-        index = buttons.index(current_button)
-        previous_button = buttons[(index - 1) % len(buttons)]
-    except ValueError:
-        previous_button = buttons[-1]
-    highlight_button(previous_button)
 
+    current_button = window.focus_get()
+
+    if current_button not in buttons:
+        highlight_button(buttons[-1])
+        return
+
+    index = buttons.index(current_button)
+    previous_button = buttons[(index - 1) % len(buttons)]
+    highlight_button(previous_button)
 
 def handle_enter(event=None):
     active_button = window.focus_get()
@@ -184,7 +191,7 @@ def highlight_button(button):
     
     if button:
         button.config(bg='#DAD778')  # Highlight selected button in yellow
-        button.focus_set()
+        button.focus_force()
 
 
 def show_planet_page():
