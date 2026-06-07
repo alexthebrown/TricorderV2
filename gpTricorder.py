@@ -46,6 +46,7 @@ video_paths = []
 video_buttons = []
 cl_buttons = []
 clPos = 0
+roster_page_num = 0  # Track current roster page for pagination
 
 gpio_states = {}
 if use_gpio:
@@ -74,7 +75,7 @@ def get_button_list_for_page():
     if currentPage == "pl":
         return [planet_back_button]
     if currentPage == "sensor":
-        return [roster_back_button, roster_refresh_button]
+        return [roster_prev_button, roster_next_button, roster_back_button, roster_refresh_button]
     if currentPage == "status":
         return [status_back_button]
     if currentPage == "input":
@@ -114,6 +115,20 @@ def handle_enter(event=None):
         active_button.config(relief=tk.SUNKEN)
         active_button.invoke()
 
+def sleep_system():
+    """Put system into sleep mode (GPIO button press will wake it)"""
+    if use_gpio:
+        try:
+            os.system('sudo systemctl suspend 2>/dev/null &')
+        except:
+            pass
+
+def wake_system():
+    """Ensure system is awake and responsive"""
+    # Light up the screen or bring window to focus
+    window.lift()
+    window.focus_force()
+
 def hat():
     if not use_gpio:
         window.after(100, hat)
@@ -132,6 +147,7 @@ def hat():
         previous = gpio_states.get(pin, GPIO.HIGH)
         if previous == GPIO.HIGH and value == GPIO.LOW:
             pressed = True
+            wake_system()  # Wake system when any button is pressed
             if pin in (17, 27):
                 highlight_previous_button()
             elif pin in (18, 22):
@@ -146,19 +162,29 @@ def hat():
         window.after(100, hat)
 
 def highlight_button(button):
-    planet_butt.config(relief=tk.RAISED)
-    CL_butt.config(relief=tk.RAISED)
-    stat_butt.config(relief=tk.RAISED)
-    sensor_butt.config(relief=tk.RAISED)
-    select_butt.config(relief=tk.RAISED)
-    input_butt.config(relief=tk.RAISED)
-    play_button.config(relief=tk.RAISED)
-    pause_button.config(relief=tk.RAISED)
-    stop_button.config(relief=tk.RAISED)
+    # Reset all buttons to green
+    planet_butt.config(bg='#86DF64')
+    CL_butt.config(bg='#86DF64')
+    stat_butt.config(bg='#86DF64')
+    sensor_butt.config(bg='#86DF64')
+    select_butt.config(bg='#86DF64')
+    input_butt.config(bg='#86DF64')
+    play_button.config(bg='#86DF64')
+    pause_button.config(bg='#86DF64')
+    stop_button.config(bg='#86DF64')
+    planet_back_button.config(bg='#86DF64')
+    captains_log_back_button.config(bg='#86DF64')
+    roster_back_button.config(bg='#86DF64')
+    roster_refresh_button.config(bg='#86DF64')
+    roster_prev_button.config(bg='#86DF64')
+    roster_next_button.config(bg='#86DF64')
+    status_back_button.config(bg='#86DF64')
+    input_back_button.config(bg='#86DF64')
+    input_submit_button.config(bg='#86DF64')
     
     if button:
-        button.config(relief=tk.SUNKEN)
-        button.focus_set()  # Set focus on the highlighted button
+        button.config(bg='#DAD778')  # Highlight selected button in yellow
+        button.focus_set()
 
 
 def show_planet_page():
@@ -394,7 +420,8 @@ def get_roster():
 
 roster_events = []
 def refresh_roster():
-    global roster_events
+    global roster_events, roster_page_num
+    roster_page_num = 0
     roster_events = get_roster()
     update_roster_display()
 
@@ -504,24 +531,54 @@ input_result = tk.Label(input_page, font=(trekFont,26), text="Enter a command or
 roster_header = tk.Frame(roster_page, bg='black', padx=14, pady=3)
 roster_content_frame = tk.Frame(roster_page, bg='black', padx=14, pady=3)
 roster_scroll = tk.Frame(roster_content_frame, bg='black')
+roster_footer = tk.Frame(roster_page, bg='black', padx=14, pady=3)
 
 roster_label = tk.Label(roster_header, text="Duty Roster", font=(trekFont,75), bg='black', fg='#DAD778', padx=5)
 roster_back_button = tk.Button(roster_header, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
 roster_refresh_button = tk.Button(roster_header, font=(trekFont,30), text="Refresh", bg='#86DF64', fg='black', padx=5, pady=5)
 roster_text = tk.Label(roster_scroll, font=(trekFont,20), text="Loading events...", bg='black', fg='#DAD778', justify='left', wraplength=650)
+roster_prev_button = tk.Button(roster_footer, font=(trekFont,30), text="PREV", bg='#86DF64', fg='black', padx=5, pady=5, command=roster_prev_page)
+roster_next_button = tk.Button(roster_footer, font=(trekFont,30), text="NEXT", bg='#86DF64', fg='black', padx=5, pady=5, command=roster_next_page)
+roster_page_label = tk.Label(roster_footer, text="", font=(trekFont,20), bg='black', fg='#DAD778')
 
 def update_roster_display():
-    """Update the roster display with fetched events"""
+    """Update the roster display with fetched events (5 per page)"""
+    global roster_page_num
     if not roster_events:
         roster_text.config(text="No events found for TrekFest.")
-    else:
-        text_output = ""
-        for event in roster_events[:15]:  # Show first 15 events
-            text_output += f"{event.start} - {event.title}\n"
-            if event.location:
-                text_output += f"  Location: {event.location}\n"
-            text_output += "\n"
-        roster_text.config(text=text_output if text_output else "No events available.")
+        roster_page_label.config(text="")
+        return
+    
+    # Calculate pagination
+    events_per_page = 5
+    total_pages = (len(roster_events) + events_per_page - 1) // events_per_page
+    roster_page_num = max(0, min(roster_page_num, total_pages - 1))
+    
+    start_idx = roster_page_num * events_per_page
+    end_idx = start_idx + events_per_page
+    page_events = roster_events[start_idx:end_idx]
+    
+    text_output = ""
+    for event in page_events:
+        text_output += f"{event.start} - {event.title}\n"
+        if event.location:
+            text_output += f"  Location: {event.location}\n"
+        text_output += "\n"
+    
+    roster_text.config(text=text_output if text_output else "No events available.")
+    roster_page_label.config(text=f"Page {roster_page_num + 1} of {total_pages}")
+
+def roster_prev_page():
+    global roster_page_num
+    roster_page_num = max(0, roster_page_num - 1)
+    update_roster_display()
+
+def roster_next_page():
+    global roster_page_num
+    events_per_page = 5
+    total_pages = (len(roster_events) + events_per_page - 1) // events_per_page
+    roster_page_num = min(roster_page_num + 1, total_pages - 1)
+    update_roster_display()
 
 enumerate_videos()
 alternator = 0
@@ -693,6 +750,10 @@ roster_refresh_button.pack(side='left')
 roster_content_frame.pack(fill='both', expand=True)
 roster_scroll.pack(fill='both', expand=True)
 roster_text.pack(pady=20, padx=20)
+roster_footer.pack()
+roster_prev_button.pack(side='left', padx=5, pady=10)
+roster_page_label.pack(side='left', padx=20, pady=10)
+roster_next_button.pack(side='left', padx=5, pady=10)
 
 # Initially show the main menu
 show_main_menu()
