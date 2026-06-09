@@ -66,7 +66,15 @@ key_mappings = {
 
 def get_button_list_for_page():
     if currentPage == "mm":
-        return [planet_butt, CL_butt, sensor_butt, stat_butt, select_butt, input_butt, roster_butt]
+        return [
+            planet_butt,
+            CL_butt,
+            roster_butt,
+            sensor_butt,
+            select_butt,
+            input_butt,
+            stat_butt
+        ]
     if currentPage == "cl":
         return cl_buttons
     if currentPage == "player":
@@ -85,10 +93,13 @@ def get_button_list_for_page():
 
 
 def highlight_next_button(event=None):
+    print("NEXT")
+    print("focus:", window.focus_get())
+    print("page:", currentPage)
     buttons = get_button_list_for_page()
     if not buttons:
         return
-    current_button = window.focus_get()
+    current_button = current_highlighted
     try:
         index = buttons.index(current_button)
         next_button = buttons[(index + 1) % len(buttons)]
@@ -98,10 +109,13 @@ def highlight_next_button(event=None):
 
 
 def highlight_previous_button(event=None):
+    print("PREV")
+    print("focus:", window.focus_get())
+    print("page:", currentPage)
     buttons = get_button_list_for_page()
     if not buttons:
         return
-    current_button = window.focus_get()
+    current_button = current_highlighted
     try:
         index = buttons.index(current_button)
         previous_button = buttons[(index - 1) % len(buttons)]
@@ -111,43 +125,42 @@ def highlight_previous_button(event=None):
 
 
 def handle_enter(event=None):
-    active_button = window.focus_get()
-    if active_button:
-        active_button.config(relief=tk.SUNKEN)
-        active_button.invoke()
+    global current_highlighted
+
+    if current_highlighted:
+        current_highlighted.config(relief=tk.SUNKEN)
+        current_highlighted.invoke()
 
 def hat():
     if not use_gpio:
-        window.after(100, hat)
+        window.after(250, hat)
         return
 
-    inputs = {
-        17: GPIO.input(17),
-        18: GPIO.input(18),
-        27: GPIO.input(27),
-        22: GPIO.input(22),
-        23: GPIO.input(23)
-    }
+    up_state = GPIO.input(17)
+    down_state = GPIO.input(18)
+    left_state = GPIO.input(27)
+    right_state = GPIO.input(22)
+    enter_state = GPIO.input(23)
 
-    pressed = False
-    for pin, value in inputs.items():
-        previous = gpio_states.get(pin, GPIO.HIGH)
-        if previous == GPIO.HIGH and value == GPIO.LOW:
-            pressed = True
-            if pin in (17, 27):
-                highlight_previous_button()
-            elif pin in (18, 22):
-                highlight_next_button()
-            elif pin == 23:
-                handle_enter()
-        gpio_states[pin] = value
+    if up_state == GPIO.LOW:
+        highlight_previous_button()
 
-    if pressed:
-        window.after(200, hat)
-    else:
-        window.after(100, hat)
+    elif down_state == GPIO.LOW:
+        highlight_next_button()
+
+    elif left_state == GPIO.LOW:
+        highlight_previous_button()
+
+    elif right_state == GPIO.LOW:
+        highlight_next_button()
+
+    elif enter_state == GPIO.LOW:
+        handle_enter()
+
+    window.after(250, hat)
 
 def highlight_button(button):
+    global current_highlighted
     planet_butt.config(relief=tk.RAISED)
     CL_butt.config(relief=tk.RAISED)
     stat_butt.config(relief=tk.RAISED)
@@ -157,6 +170,8 @@ def highlight_button(button):
     play_button.config(relief=tk.RAISED)
     pause_button.config(relief=tk.RAISED)
     stop_button.config(relief=tk.RAISED)
+
+    current_highlighted = button
     
     if button:
         button.config(relief=tk.SUNKEN)
@@ -431,6 +446,8 @@ center = tk.Frame(window)
 topButtons = tk.Frame(window)
 bottomButtons = tk.Frame(window,bg='black')
 
+
+current_highlighted = None
 
 
 
