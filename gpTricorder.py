@@ -2,10 +2,15 @@ import tkinter as tk
 import requests as rq
 import pathlib as pl
 import os
+import platform
+import subprocess
 import time
 import re
 from tkinter import ttk, Canvas
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 from PIL import Image, ImageTk
 # import picamera
 import io
@@ -42,17 +47,15 @@ class RosterEvent:
 
 VIDEO_DIR = '/home/tricorder/networkdrive/Videos'
 WEATHER_URL = 'https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly'
+NORMAL_BUTTON_BG = '#86DF64'
+HIGHLIGHT_BUTTON_BG = '#DAD778'
 video_paths = []
 video_buttons = []
 cl_buttons = []
 clPos = 0
+IS_RASPBERRY_PI = platform.system() == "Linux" and pl.Path("/proc/device-tree/model").exists()
 
 gpio_states = {}
-if use_gpio:
-    GPIO.setmode(GPIO.BCM)
-    for pin in (17, 18, 27, 22, 23):
-        GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        gpio_states[pin] = GPIO.input(pin)
 
 # Define key mappings
 key_mappings = {
@@ -64,6 +67,39 @@ key_mappings = {
 }
 
 
+def initialize_gpio():
+    global use_gpio
+    if not use_gpio:
+        return
+    try:
+        GPIO.setmode(GPIO.BCM)
+        for pin in key_mappings:
+            GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            gpio_states[pin] = GPIO.input(pin)
+    except RuntimeError as e:
+        print(f"GPIO disabled: {e}")
+        use_gpio = False
+
+
+def wake_tricorder_display():
+    """Wake the Tk window and, on Pi/Linux, ask X11 to unblank the display."""
+    try:
+        window.deiconify()
+        window.lift()
+        window.focus_force()
+    except tk.TclError:
+        pass
+
+    if platform.system() != "Linux" or not os.environ.get("DISPLAY"):
+        return
+
+    for command in (("xset", "s", "reset"), ("xset", "dpms", "force", "on")):
+        try:
+            subprocess.run(command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError:
+            return
+
+
 def get_button_list_for_page():
     if currentPage == "mm":
         return [
@@ -71,7 +107,6 @@ def get_button_list_for_page():
             CL_butt,
             roster_butt,
             sensor_butt,
-            select_butt,
             input_butt,
             stat_butt
         ]
@@ -93,9 +128,7 @@ def get_button_list_for_page():
 
 
 def highlight_next_button(event=None):
-    print("NEXT")
-    print("focus:", window.focus_get())
-    print("page:", currentPage)
+    wake_tricorder_display()
     buttons = get_button_list_for_page()
     if not buttons:
         return
@@ -109,9 +142,7 @@ def highlight_next_button(event=None):
 
 
 def highlight_previous_button(event=None):
-    print("PREV")
-    print("focus:", window.focus_get())
-    print("page:", currentPage)
+    wake_tricorder_display()
     buttons = get_button_list_for_page()
     if not buttons:
         return
@@ -126,9 +157,9 @@ def highlight_previous_button(event=None):
 
 def handle_enter(event=None):
     global current_highlighted
+    wake_tricorder_display()
 
     if current_highlighted:
-        current_highlighted.config(relief=tk.SUNKEN)
         current_highlighted.invoke()
 
 def hat():
@@ -136,45 +167,56 @@ def hat():
         window.after(250, hat)
         return
 
-    up_state = GPIO.input(17)
-    down_state = GPIO.input(18)
-    left_state = GPIO.input(27)
-    right_state = GPIO.input(22)
-    enter_state = GPIO.input(23)
-
-    if up_state == GPIO.LOW:
-        highlight_previous_button()
-
-    elif down_state == GPIO.LOW:
-        highlight_next_button()
-
-    elif left_state == GPIO.LOW:
-        highlight_previous_button()
-
-    elif right_state == GPIO.LOW:
-        highlight_next_button()
-
-    elif enter_state == GPIO.LOW:
-        handle_enter()
+    for pin, key in key_mappings.items():
+        current_state = GPIO.input(pin)
+        previous_state = gpio_states.get(pin, GPIO.HIGH)
+        gpio_states[pin] = current_state
+        if previous_state == GPIO.HIGH and current_state == GPIO.LOW:
+            wake_tricorder_display()
+            if key in ('up', 'left'):
+                highlight_previous_button()
+            elif key in ('down', 'right'):
+                highlight_next_button()
+            elif key == 'enter':
+                handle_enter()
+            break
 
     window.after(250, hat)
 
+
+def all_highlightable_buttons():
+    return [
+        planet_butt,
+        CL_butt,
+        stat_butt,
+        sensor_butt,
+        input_butt,
+        roster_butt,
+        planet_back_button,
+        refresh_weather_button,
+        captains_log_back_button,
+        status_back_button,
+        input_back_button,
+        input_submit_button,
+        roster_back_button,
+        roster_refresh_button,
+        sensor_back_button,
+        play_button,
+        pause_button,
+        stop_button,
+        *video_buttons,
+    ]
+
+
 def highlight_button(button):
     global current_highlighted
-    planet_butt.config(relief=tk.RAISED)
-    CL_butt.config(relief=tk.RAISED)
-    stat_butt.config(relief=tk.RAISED)
-    sensor_butt.config(relief=tk.RAISED)
-    select_butt.config(relief=tk.RAISED)
-    input_butt.config(relief=tk.RAISED)
-    play_button.config(relief=tk.RAISED)
-    pause_button.config(relief=tk.RAISED)
-    stop_button.config(relief=tk.RAISED)
+    for candidate in all_highlightable_buttons():
+        candidate.config(bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, relief=tk.RAISED)
 
     current_highlighted = button
-    
+
     if button:
-        button.config(relief=tk.SUNKEN)
+        button.config(bg=HIGHLIGHT_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, relief=tk.RAISED)
         button.focus_set()  # Set focus on the highlighted button
 
 
@@ -427,13 +469,13 @@ def refresh_roster():
     roster_events = get_roster()
     update_roster_display()
 
+initialize_gpio()
 window = tk.Tk(className='Tricorder')
-window.attributes('-fullscreen', False)
 trekFont = "Trek"
 username = "Scott Thunder"
 window.configure(bg='black',width=720,height=576)
 
-window.attributes('-fullscreen',True)
+window.attributes('-fullscreen', IS_RASPBERRY_PI)
 
 tempVar = tk.StringVar()
 humVar = tk.StringVar()
@@ -457,15 +499,14 @@ top = tk.Label(header, text="USS ENTERPRISE NCC-1701 STANDARD ISSUE",
 tricorder = tk.Label(center, text="TRICORDER",
                      font=(trekFont,135), fg='#DAD778', bg='black')
 
-planet_butt = tk.Button(topButtons, font=(trekFont,39), text="PLANET", bg='#86DF64', fg='black', padx=5, pady=5, command=show_planet_page)
-CL_butt = tk.Button(topButtons, font=(trekFont,39), text="CAPTAIN'S LOG", bg='#86DF64', fg='black', padx=5, pady=5, command=show_captains_log_page)
-sensor_butt = tk.Button(topButtons, font=(trekFont,39), text="SENSORS", bg='#86DF64', fg='black', padx=5, pady=5, command=show_sensor_page)
+planet_butt = tk.Button(topButtons, font=(trekFont,39), text="PLANET", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_planet_page)
+CL_butt = tk.Button(topButtons, font=(trekFont,39), text="CAPTAIN'S LOG", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_captains_log_page)
+sensor_butt = tk.Button(topButtons, font=(trekFont,39), text="SENSORS", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_sensor_page)
 
 userLabel = tk.Label(bottomButtons, text=username, font=(trekFont,39), bg='black', fg='#DAD778', pady=9)
-stat_butt = tk.Button(bottomButtons, font=(trekFont,39), text="STATUS", bg='#86DF64', fg='black', padx=5, pady=5, command=show_status_page)
-select_butt = tk.Button(bottomButtons, font=(trekFont,39), text="SELECT", bg='#86DF64', fg='black', padx=5, pady=5, command=show_sensor_page)
-input_butt = tk.Button(bottomButtons, font=(trekFont,39), text="INPUT", bg='#86DF64', fg='black', padx=5, pady=5, command=show_input_page)
-roster_butt = tk.Button(topButtons, font=(trekFont,39), text="SCHEDULE", bg='#86DF64', fg='black', padx=5, pady=5, command=show_roster_page)
+stat_butt = tk.Button(bottomButtons, font=(trekFont,39), text="STATUS", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_status_page)
+input_butt = tk.Button(bottomButtons, font=(trekFont,39), text="INPUT", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_input_page)
+roster_butt = tk.Button(topButtons, font=(trekFont,39), text="DUTY ROSTER", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_roster_page)
 
 # Create separate frames for each page
 planet_page = tk.Frame(window, bg='black')
@@ -488,7 +529,7 @@ sfc_frame = tk.Frame(planet_page,bg='black', pady=10)
 
 # Add widgets to the planet page (WEATHER)
 planet_label = tk.Label(pl_header, text="Planet Conditions", font=(trekFont,81), bg='black', fg='#DAD778',padx=10)
-planet_back_button = tk.Button(pl_header, font=(trekFont,45), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+planet_back_button = tk.Button(pl_header, font=(trekFont,45), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
 
 temp_title = tk.Label(temp_frame, font=(trekFont,30),text='Temperature:', bg='#DAD778',fg='black', padx=5, pady=5)
 temp_label =tk.Label(temp_frame, font=(trekFont,30),textvariable=tempVar, padx=0, pady=5,bg='#DAD778', fg='black')
@@ -504,7 +545,7 @@ precip_var_label = tk.Label(precip_frame, font=(trekFont,30),textvariable=precVa
 precipPC_label = tk.Label(precip_frame, font=(trekFont,30), text='%', fg='black', bg='#DAD778')
 
 sfc_label = tk.Label(sfc_frame, font=(trekFont,30), textvariable=sfcVar, fg='#DAD778', bg='black')
-refresh_weather_button = tk.Button(planet_page, font=(trekFont,30), text="Refresh", bg='#86DF64', fg='black', padx=5, pady=5, command=show_planet_page)
+refresh_weather_button = tk.Button(planet_page, font=(trekFont,30), text="Refresh", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_planet_page)
                        
 # Captain's Log Internal Frames
 
@@ -515,21 +556,21 @@ logsR = tk.Frame(logHolder, bg="black")
 
 # Add widgets to the captain's log page
 captains_log_label = tk.Label(cl_header, text="Captain's Log Page", font=(trekFont,75), bg='black', fg='#DAD778', padx=5)
-captains_log_back_button = tk.Button(cl_header, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+captains_log_back_button = tk.Button(cl_header, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
 
 # Add widgets to the Sensors page
 image_label = tk.Label(sensor_page)
 
 # Add status page widgets
 status_label = tk.Label(status_page, text="Status Overview", font=(trekFont,60), bg='black', fg='#DAD778')
-status_back_button = tk.Button(status_page, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+status_back_button = tk.Button(status_page, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
 status_text = tk.Label(status_page, font=(trekFont,26), text="", bg='black', fg='#DAD778', justify='left')
 
 # Add input page widgets
 input_label = tk.Label(input_page, text="Command Console", font=(trekFont,60), bg='black', fg='#DAD778')
-input_back_button = tk.Button(input_page, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+input_back_button = tk.Button(input_page, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
 input_entry = tk.Entry(input_page, font=(trekFont,28), width=24, bg='#DAD778', fg='black')
-input_submit_button = tk.Button(input_page, font=(trekFont,30), text="Submit", bg='#86DF64', fg='black', padx=5, pady=5)
+input_submit_button = tk.Button(input_page, font=(trekFont,30), text="Submit", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
 input_result = tk.Label(input_page, font=(trekFont,26), text="Enter a command or note.", bg='black', fg='#DAD778', wraplength=680, justify='left')
 
 # Add roster page widgets
@@ -538,8 +579,8 @@ roster_content_frame = tk.Frame(roster_page, bg='black', padx=14, pady=3)
 roster_scroll = tk.Frame(roster_content_frame, bg='black')
 
 roster_label = tk.Label(roster_header, text="Duty Roster", font=(trekFont,75), bg='black', fg='#DAD778', padx=5)
-roster_back_button = tk.Button(roster_header, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
-roster_refresh_button = tk.Button(roster_header, font=(trekFont,30), text="Refresh", bg='#86DF64', fg='black', padx=5, pady=5)
+roster_back_button = tk.Button(roster_header, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
+roster_refresh_button = tk.Button(roster_header, font=(trekFont,30), text="Refresh", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
 roster_text = tk.Label(roster_scroll, font=(trekFont,20), text="Loading events...", bg='black', fg='#DAD778', justify='left', wraplength=650)
 
 def update_roster_display():
@@ -559,19 +600,32 @@ enumerate_videos()
 alternator = 0
 for video in video_paths:
     if alternator == 0:
-        newButton = tk.Button(logsL,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:show_video_page(tV))
+        newButton = tk.Button(logsL,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', command= lambda tV=video:show_video_page(tV))
         alternator = 1
     else:
-        newButton = tk.Button(logsR,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg= '#86DF64',fg='black', command= lambda tV=video:show_video_page(tV))
+        newButton = tk.Button(logsR,text=video.name.removesuffix('.mp4'),font=(trekFont,30), bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', command= lambda tV=video:show_video_page(tV))
         alternator = 0
     video_buttons.append(newButton)
 
 def start_video(path):
     global cap
-    cap = cv2.VideoCapture(path)
-    global is_paused 
-    is_paused = False
+    global is_paused
     global is_stopped
+    if cv2 is None:
+        is_paused = True
+        is_stopped = True
+        canvas.delete("all")
+        canvas.create_text(360, 260, text="OpenCV is not installed.\nVideo playback is disabled.", fill=HIGHLIGHT_BUTTON_BG, font=(trekFont, 30), justify='center')
+        print("OpenCV is not installed; video playback is disabled.")
+        return
+    cap = cv2.VideoCapture(path)
+    if not cap.isOpened():
+        is_paused = True
+        is_stopped = True
+        canvas.delete("all")
+        canvas.create_text(360, 260, text="Unable to open video.", fill=HIGHLIGHT_BUTTON_BG, font=(trekFont, 30), justify='center')
+        return
+    is_paused = False
     is_stopped = False
     update_frame()
 
@@ -604,7 +658,8 @@ def pause_video():
 def stop_video():
     global is_stopped
     is_stopped = True
-    cap.release()
+    if 'cap' in globals() and cap is not None:
+        cap.release()
     canvas.delete("all")
     show_captains_log_page()
 
@@ -621,9 +676,9 @@ def on_close():
 # Add bits inside video player
 canvas = Canvas(player_page, width=720, height=526)
 canvas.pack()
-play_button = tk.Button(player_page, font=(trekFont,30), text="Play", command=play_video, bg='#86DF64', fg='black', padx=5, pady=5)
-pause_button = tk.Button(player_page, font=(trekFont,30), text="Pause",command=pause_video, bg='#86DF64', fg='black', padx=5, pady=5)
-stop_button = tk.Button(player_page, font=(trekFont,30), text="Stop", command=stop_video, bg='#86DF64', fg='black', padx=5, pady=5)
+play_button = tk.Button(player_page, font=(trekFont,30), text="Play", command=play_video, bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
+pause_button = tk.Button(player_page, font=(trekFont,30), text="Pause",command=pause_video, bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
+stop_button = tk.Button(player_page, font=(trekFont,30), text="Stop", command=stop_video, bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
 play_button.pack(side='left')
 pause_button.pack(side='left')
 stop_button.pack(side='left')
@@ -632,7 +687,7 @@ stop_button.pack(side='left')
 
 # Add widgets to the status page
 sensor_label = tk.Label(sensor_page, text="Sensor Page", font=(trekFont,30), bg='black', fg='#DAD778')
-sensor_back_button = tk.Button(sensor_page, font=(trekFont,30), text="Back", bg='#86DF64', fg='black', padx=5, pady=5)
+sensor_back_button = tk.Button(sensor_page, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
 
 header.pack()
 top.pack()
@@ -647,7 +702,6 @@ roster_butt.pack(side='left')
 bottomButtons.pack()
 userLabel.pack(side='left')
 sensor_butt.pack(side='left')
-select_butt.pack(side='left')
 input_butt.pack(side='left')
 
 # Add functionality to back buttons
