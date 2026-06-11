@@ -45,15 +45,23 @@ class RosterEvent:
         self.location = location
         self.details = details
 
-VIDEO_DIR = '/home/tricorder/networkdrive/Videos'
 WEATHER_URL = 'https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly'
 NORMAL_BUTTON_BG = '#86DF64'
 HIGHLIGHT_BUTTON_BG = '#DAD778'
+ROSTER_PAGE_SIZE = 5
 video_paths = []
 video_buttons = []
 cl_buttons = []
 clPos = 0
+roster_page_index = 0
 IS_RASPBERRY_PI = platform.system() == "Linux" and pl.Path("/proc/device-tree/model").exists()
+PROJECT_DIR = pl.Path(__file__).resolve().parent
+PI_VIDEO_DIR = pl.Path('/home/tricorder/networkdrive/Videos')
+LOCAL_VIDEO_DIR = PROJECT_DIR / 'videos'
+VIDEO_DIR = pl.Path(os.environ.get(
+    'TRICORDER_VIDEO_DIR',
+    PI_VIDEO_DIR if IS_RASPBERRY_PI else LOCAL_VIDEO_DIR
+))
 
 gpio_states = {}
 
@@ -101,12 +109,14 @@ def wake_tricorder_display():
 
 
 def get_button_list_for_page():
+    def active_buttons(buttons):
+        return [button for button in buttons if str(button.cget('state')) != tk.DISABLED]
+
     if currentPage == "mm":
         return [
             planet_butt,
             CL_butt,
             roster_butt,
-            sensor_butt,
             input_butt,
             stat_butt
         ]
@@ -116,14 +126,12 @@ def get_button_list_for_page():
         return [play_button, pause_button, stop_button]
     if currentPage == "pl":
         return [planet_back_button]
-    if currentPage == "sensor":
-        return [sensor_back_button]
     if currentPage == "status":
         return [status_back_button]
     if currentPage == "input":
         return [input_back_button, input_submit_button]
     if currentPage == "roster":
-        return [roster_back_button, roster_refresh_button]
+        return active_buttons([roster_back_button, roster_prev_button, roster_next_button, roster_refresh_button])
     return []
 
 
@@ -189,7 +197,6 @@ def all_highlightable_buttons():
         planet_butt,
         CL_butt,
         stat_butt,
-        sensor_butt,
         input_butt,
         roster_butt,
         planet_back_button,
@@ -199,8 +206,9 @@ def all_highlightable_buttons():
         input_back_button,
         input_submit_button,
         roster_back_button,
+        roster_prev_button,
+        roster_next_button,
         roster_refresh_button,
-        sensor_back_button,
         play_button,
         pause_button,
         stop_button,
@@ -307,10 +315,10 @@ def submit_input():
 
 
 def enumerate_videos():
-    path = pl.Path(VIDEO_DIR)
-    if not path.exists():
+    if not VIDEO_DIR.exists():
+        print(f"Video directory not found: {VIDEO_DIR}")
         return
-    for item in path.iterdir():
+    for item in VIDEO_DIR.iterdir():
         if item.is_file() and item.name.endswith('.mp4'):
             video_paths.append(item)
             print(item)
@@ -331,24 +339,10 @@ def show_captains_log_page():
     captains_log_page.pack()
 
 
-def show_sensor_page():
-    global currentPage
-    header.pack_forget()
-    center.pack_forget()
-    topButtons.pack_forget()
-    bottomButtons.pack_forget()
-    status_page.pack_forget()
-    input_page.pack_forget()
-    currentPage = "sensor"
-    highlight_button(sensor_back_button)
-    sensor_page.pack()
-
-
 def show_main_menu():
     global currentPage
     planet_page.pack_forget()
     captains_log_page.pack_forget()
-    sensor_page.pack_forget()
     player_page.pack_forget()
     status_page.pack_forget()
     input_page.pack_forget()
@@ -369,29 +363,6 @@ def show_video_page(path):
     currentPage = "player"
     highlight_button(play_button)
     start_video(str(path))
-
-# def start_camera():
-#     global stream
-#     stream = io.BytesIO()
-#     camera.start_preview()
-#     update_image()
-
-# def update_image():
-#     camera.capture(stream,format='jpeg', use_video_port=True)
-#     stream.seek(0)
-#     image = Image.open(stream)
-#     image = ImageTk.PhotoImage(image)
-#     image_label.configure(image=image)
-#     image_label.image = image
-#     stream.seek(0)
-#     stream.truncate()
-#     window.after(100,update_image)
-
-# def on_closing():
-#     camera.stop_preview()
-#     camera.close()
-#     show_main_menu()
-
 
 def get_weather():
     try:
@@ -465,9 +436,33 @@ def get_roster():
 
 roster_events = []
 def refresh_roster():
-    global roster_events
+    global roster_events, roster_page_index
     roster_events = get_roster()
+    roster_page_index = 0
     update_roster_display()
+
+
+def get_roster_page_count():
+    if not roster_events:
+        return 1
+    return max(1, (len(roster_events) + ROSTER_PAGE_SIZE - 1) // ROSTER_PAGE_SIZE)
+
+
+def show_previous_roster_page():
+    global roster_page_index
+    if roster_page_index > 0:
+        roster_page_index -= 1
+        update_roster_display()
+    highlight_button(roster_prev_button if roster_page_index > 0 else roster_back_button)
+
+
+def show_next_roster_page():
+    global roster_page_index
+    page_count = get_roster_page_count()
+    if roster_page_index < page_count - 1:
+        roster_page_index += 1
+        update_roster_display()
+    highlight_button(roster_next_button if roster_page_index < page_count - 1 else roster_back_button)
 
 initialize_gpio()
 window = tk.Tk(className='Tricorder')
@@ -501,7 +496,6 @@ tricorder = tk.Label(center, text="TRICORDER",
 
 planet_butt = tk.Button(topButtons, font=(trekFont,39), text="PLANET", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_planet_page)
 CL_butt = tk.Button(topButtons, font=(trekFont,39), text="CAPTAIN'S LOG", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_captains_log_page)
-sensor_butt = tk.Button(topButtons, font=(trekFont,39), text="SENSORS", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_sensor_page)
 
 userLabel = tk.Label(bottomButtons, text=username, font=(trekFont,39), bg='black', fg='#DAD778', pady=9)
 stat_butt = tk.Button(bottomButtons, font=(trekFont,39), text="STATUS", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_status_page)
@@ -511,7 +505,6 @@ roster_butt = tk.Button(topButtons, font=(trekFont,39), text="DUTY ROSTER", bg=N
 # Create separate frames for each page
 planet_page = tk.Frame(window, bg='black')
 captains_log_page = tk.Frame(window, bg='black')
-sensor_page = tk.Frame(window, bg='black')
 player_page = tk.Frame(window, bg='black')
 status_page = tk.Frame(window, bg='black')
 input_page = tk.Frame(window, bg='black')
@@ -558,9 +551,6 @@ logsR = tk.Frame(logHolder, bg="black")
 captains_log_label = tk.Label(cl_header, text="Captain's Log Page", font=(trekFont,75), bg='black', fg='#DAD778', padx=5)
 captains_log_back_button = tk.Button(cl_header, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
 
-# Add widgets to the Sensors page
-image_label = tk.Label(sensor_page)
-
 # Add status page widgets
 status_label = tk.Label(status_page, text="Status Overview", font=(trekFont,60), bg='black', fg='#DAD778')
 status_back_button = tk.Button(status_page, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
@@ -580,21 +570,33 @@ roster_scroll = tk.Frame(roster_content_frame, bg='black')
 
 roster_label = tk.Label(roster_header, text="Duty Roster", font=(trekFont,75), bg='black', fg='#DAD778', padx=5)
 roster_back_button = tk.Button(roster_header, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
+roster_prev_button = tk.Button(roster_header, font=(trekFont,30), text="Prev", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
+roster_next_button = tk.Button(roster_header, font=(trekFont,30), text="Next", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
 roster_refresh_button = tk.Button(roster_header, font=(trekFont,30), text="Refresh", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
-roster_text = tk.Label(roster_scroll, font=(trekFont,20), text="Loading events...", bg='black', fg='#DAD778', justify='left', wraplength=650)
+roster_page_label = tk.Label(roster_header, text="", font=(trekFont,24), bg='black', fg='#DAD778', padx=5)
+roster_text = tk.Label(roster_scroll, font=(trekFont,22), text="Loading events...", bg='black', fg='#DAD778', justify='left', wraplength=650)
 
 def update_roster_display():
     """Update the roster display with fetched events"""
     if not roster_events:
         roster_text.config(text="No events found for TrekFest.")
+        roster_page_label.config(text="Page 1 of 1")
+        roster_prev_button.config(state=tk.DISABLED)
+        roster_next_button.config(state=tk.DISABLED)
     else:
+        page_count = get_roster_page_count()
+        start = roster_page_index * ROSTER_PAGE_SIZE
+        end = start + ROSTER_PAGE_SIZE
         text_output = ""
-        for event in roster_events[:15]:  # Show first 15 events
+        for event in roster_events[start:end]:
             text_output += f"{event.start} - {event.title}\n"
             if event.location:
                 text_output += f"  Location: {event.location}\n"
             text_output += "\n"
         roster_text.config(text=text_output if text_output else "No events available.")
+        roster_page_label.config(text=f"Page {roster_page_index + 1} of {page_count}")
+        roster_prev_button.config(state=tk.NORMAL if roster_page_index > 0 else tk.DISABLED)
+        roster_next_button.config(state=tk.NORMAL if roster_page_index < page_count - 1 else tk.DISABLED)
 
 enumerate_videos()
 alternator = 0
@@ -685,10 +687,6 @@ stop_button.pack(side='left')
 
 
 
-# Add widgets to the status page
-sensor_label = tk.Label(sensor_page, text="Sensor Page", font=(trekFont,30), bg='black', fg='#DAD778')
-sensor_back_button = tk.Button(sensor_page, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
-
 header.pack()
 top.pack()
 center.pack()
@@ -701,16 +699,16 @@ roster_butt.pack(side='left')
 
 bottomButtons.pack()
 userLabel.pack(side='left')
-sensor_butt.pack(side='left')
 input_butt.pack(side='left')
 
 # Add functionality to back buttons
 planet_back_button.config(command=show_main_menu)
 captains_log_back_button.config(command=show_main_menu)
-sensor_back_button.config(command=show_main_menu)
 status_back_button.config(command=show_main_menu)
 input_back_button.config(command=show_main_menu)
 roster_back_button.config(command=show_main_menu)
+roster_prev_button.config(command=show_previous_roster_page)
+roster_next_button.config(command=show_next_roster_page)
 roster_refresh_button.config(command=refresh_roster)
 input_submit_button.config(command=submit_input)
 
@@ -769,13 +767,13 @@ input_submit_button.pack(pady=10)
 input_result.pack(pady=15, padx=20)
 
 
-sensor_back_button.pack()
-sensor_label.pack()
-
 # Pack roster page widgets
 roster_header.pack()
 roster_back_button.pack(side='left')
 roster_label.pack(side='left')
+roster_page_label.pack(side='left')
+roster_prev_button.pack(side='left')
+roster_next_button.pack(side='left')
 roster_refresh_button.pack(side='left')
 roster_content_frame.pack(fill='both', expand=True)
 roster_scroll.pack(fill='both', expand=True)

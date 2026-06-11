@@ -10,6 +10,11 @@ python3 -m pip install -r requirements.txt --break-system-packages
 # Ensure the application uses the primary display
 export DISPLAY="${DISPLAY:-:0}"
 
+# Nudge the pointer so the desktop/display sees activity during startup.
+if command -v xdotool >/dev/null 2>&1; then
+    xdotool mousemove 1 1
+fi
+
 # Configure GPIO wakeup from sleep on the expected BCM key pins.
 WAKE_PINS=(17 18 27 22 23)
 if [ -d /sys/class/gpio ]; then
