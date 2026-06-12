@@ -471,6 +471,8 @@ username = "Scott Thunder"
 window.configure(bg='black',width=720,height=576)
 
 window.attributes('-fullscreen', IS_RASPBERRY_PI)
+if IS_RASPBERRY_PI:
+    window.configure(cursor='none')
 
 tempVar = tk.StringVar()
 humVar = tk.StringVar()

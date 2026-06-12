@@ -10,9 +10,9 @@ python3 -m pip install -r requirements.txt --break-system-packages
 # Ensure the application uses the primary display
 export DISPLAY="${DISPLAY:-:0}"
 
-# Nudge the pointer so the desktop/display sees activity during startup.
+# Nudge the pointer after the app opens so it lands at the screen edge.
 if command -v xdotool >/dev/null 2>&1; then
-    xdotool mousemove 1 1
+    (sleep 2; xdotool mousemove --sync 0 0) &
 fi
 
 # Configure GPIO wakeup from sleep on the expected BCM key pins.
