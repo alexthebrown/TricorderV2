@@ -3,6 +3,7 @@ import requests as rq
 import pathlib as pl
 import os
 import platform
+import socket
 import subprocess
 import time
 import re
@@ -15,6 +16,7 @@ from PIL import Image, ImageTk
 # import picamera
 import io
 from html.parser import HTMLParser
+from html import unescape
 from datetime import datetime
 
 # Detect GPIO support at runtime so the app can still run on non-RPi systems
@@ -28,7 +30,7 @@ except (ImportError, RuntimeError):
 # Weather Variables
 cWeather = None
 class weather:
-    def __init__(self, temp, precip, humidity, sfc, wind_speed="", wind_dir="", detailed=""):
+    def __init__(self, temp, precip, humidity, sfc, wind_speed="", wind_dir="", detailed="", alerts=None, hazard="UNKNOWN"):
         self.temp = temp
         self.humidity = humidity
         self.precip = precip
@@ -36,6 +38,8 @@ class weather:
         self.wind_speed = wind_speed
         self.wind_dir = wind_dir
         self.detailed = detailed
+        self.alerts = alerts or []
+        self.hazard = hazard
 
 class RosterEvent:
     def __init__(self, date="", start="", title="", location="", details=""):
@@ -46,15 +50,23 @@ class RosterEvent:
         self.details = details
 
 WEATHER_URL = 'https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly'
+WEATHER_ALERT_URL = 'https://api.weather.gov/alerts/active?point=41.66,-91.53'
 NORMAL_BUTTON_BG = '#86DF64'
 HIGHLIGHT_BUTTON_BG = '#DAD778'
-ROSTER_PAGE_SIZE = 5
+ROSTER_PAGE_SIZE = 3
+PAGE_PAD_X = 58
+PAGE_WRAP = 600
 video_paths = []
 video_buttons = []
 cl_buttons = []
 clPos = 0
 roster_page_index = 0
-IS_RASPBERRY_PI = platform.system() == "Linux" and pl.Path("/proc/device-tree/model").exists()
+LOCAL_MODE = os.environ.get("TRICORDER_LOCAL", "").lower() in ("1", "true", "yes")
+IS_RASPBERRY_PI = (
+    not LOCAL_MODE
+    and platform.system() == "Linux"
+    and pl.Path("/proc/device-tree/model").exists()
+)
 PROJECT_DIR = pl.Path(__file__).resolve().parent
 PI_VIDEO_DIR = pl.Path('/home/tricorder/networkdrive/Videos')
 LOCAL_VIDEO_DIR = PROJECT_DIR / 'videos'
@@ -77,6 +89,9 @@ key_mappings = {
 
 def initialize_gpio():
     global use_gpio
+    if LOCAL_MODE:
+        use_gpio = False
+        return
     if not use_gpio:
         return
     try:
@@ -125,9 +140,9 @@ def get_button_list_for_page():
     if currentPage == "player":
         return [play_button, pause_button, stop_button]
     if currentPage == "pl":
-        return [planet_back_button]
+        return [planet_back_button, refresh_weather_button]
     if currentPage == "status":
-        return [status_back_button]
+        return [status_back_button, status_refresh_button]
     if currentPage == "input":
         return [input_back_button, input_submit_button]
     if currentPage == "roster":
@@ -203,6 +218,7 @@ def all_highlightable_buttons():
         refresh_weather_button,
         captains_log_back_button,
         status_back_button,
+        status_refresh_button,
         input_back_button,
         input_submit_button,
         roster_back_button,
@@ -240,11 +256,7 @@ def show_planet_page():
     humVar.set(cWeather.humidity)
     sfcVar.set(cWeather.sfc)
     precVar.set(cWeather.precip)
-    # Display detailed forecast with wind info
-    forecast_detail = cWeather.detailed if cWeather.detailed else cWeather.sfc
-    if cWeather.wind_speed or cWeather.wind_dir:
-        forecast_detail += f"\nWind: {cWeather.wind_dir} {cWeather.wind_speed}"
-    sfc_label.config(text=forecast_detail)
+    sfc_label.config(text=build_hazard_text(cWeather))
     currentPage = "pl"
     highlight_button(planet_back_button)
     planet_page.pack(side='left')
@@ -258,7 +270,7 @@ def show_status_page():
     bottomButtons.pack_forget()
     currentPage = "status"
     refresh_status_text()
-    highlight_button(status_back_button)
+    highlight_button(status_refresh_button)
     status_page.pack(side='left', fill='both', expand=True)
 
 
@@ -288,15 +300,46 @@ def show_roster_page():
     roster_page.pack(side='left', fill='both', expand=True)
 
 
+def get_local_ip():
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(1)
+        sock.connect(("8.8.8.8", 80))
+        address = sock.getsockname()[0]
+        sock.close()
+        return address
+    except OSError:
+        return "Offline"
+
+
+def measure_link_latency():
+    start = time.monotonic()
+    try:
+        rq.get('https://api.weather.gov', timeout=5)
+        return int((time.monotonic() - start) * 1000), True
+    except Exception:
+        return 0, False
+
+
 def refresh_status_text():
-    now = time.strftime('%Y-%m-%d %H:%M:%S')
-    video_count = len(video_paths)
+    latency_ms, internet_ok = measure_link_latency()
+    try:
+        socket.gethostbyname('api.weather.gov')
+        dns_status = "OK"
+    except OSError:
+        dns_status = "FAIL"
+
+    local_ip = get_local_ip()
+    weather_status = "READY" if cWeather and cWeather.sfc != "Error" else "STANDBY"
     status_result = (
-        f"Current Time: {now}\n"
-        f"Video Count: {video_count}\n"
-        f"Weather API: {'Connected' if cWeather else 'Unknown'}\n"
-        f"GPIO Support: {'Enabled' if use_gpio else 'Disabled'}\n"
-        f"App Version: TricorderV2"
+        "SUBSPACE LINK\n"
+        f"NET: {'ONLINE' if internet_ok else 'OFFLINE'}\n"
+        f"LATENCY: {latency_ms} ms\n"
+        f"DNS: {dns_status}\n"
+        f"LOCAL IP: {local_ip}\n"
+        f"WEATHER: {weather_status}\n"
+        f"GPIO: {'READY' if use_gpio else 'SIM'}\n"
+        f"LOGS: {len(video_paths)} files"
     )
     status_text.config(text=status_result)
 
@@ -316,8 +359,11 @@ def submit_input():
 
 def enumerate_videos():
     if not VIDEO_DIR.exists():
-        print(f"Video directory not found: {VIDEO_DIR}")
-        return
+        try:
+            VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            print(f"Video directory not available: {VIDEO_DIR} ({e})")
+            return
     for item in VIDEO_DIR.iterdir():
         if item.is_file() and item.name.endswith('.mp4'):
             video_paths.append(item)
@@ -364,6 +410,61 @@ def show_video_page(path):
     highlight_button(play_button)
     start_video(str(path))
 
+def parse_wind_mph(wind_text):
+    numbers = [int(value) for value in re.findall(r'\d+', wind_text or "")]
+    return max(numbers) if numbers else 0
+
+
+def get_weather_alerts():
+    try:
+        r = rq.get(WEATHER_ALERT_URL, timeout=8)
+        r.raise_for_status()
+        data = r.json()
+        alerts = []
+        for feature in data.get('features', [])[:3]:
+            props = feature.get('properties', {})
+            event = props.get('event') or props.get('headline') or "Weather Alert"
+            severity = props.get('severity', '')
+            alerts.append(f"{event} {severity}".strip())
+        return alerts
+    except Exception as e:
+        print(f"Weather alert fetch error: {e}")
+        return []
+
+
+def classify_hazard(temp, precip, wind_speed, alerts):
+    try:
+        temp = int(temp)
+    except (TypeError, ValueError):
+        temp = 0
+    try:
+        precip = int(precip)
+    except (TypeError, ValueError):
+        precip = 0
+
+    if alerts:
+        return "RED"
+    if temp <= 20 or temp >= 95 or wind_speed >= 35 or precip >= 70:
+        return "AMBER"
+    if temp <= 32 or temp >= 88 or wind_speed >= 25 or precip >= 40:
+        return "CAUTION"
+    return "GREEN"
+
+
+def build_hazard_text(report):
+    lines = [
+        f"HAZARD: {report.hazard}",
+        f"SCAN: {report.sfc}",
+        f"WIND: {report.wind_dir} {report.wind_speed}".strip(),
+    ]
+    if report.alerts:
+        lines.append("ALERTS:")
+        lines.extend(report.alerts[:2])
+    else:
+        lines.append("ALERTS: NONE ACTIVE")
+    return "\n".join(lines)
+
+
 def get_weather():
     try:
         r = rq.get(url=WEATHER_URL, timeout=10)
@@ -378,10 +479,12 @@ def get_weather():
         wind_speed = period.get('windSpeed', '')
         wind_dir = period.get('windDirection', '')
         detailed = period.get('detailedForecast', shortForecast)
-        return weather(temp, precip, humidity, shortForecast, wind_speed, wind_dir, detailed)
+        alerts = get_weather_alerts()
+        hazard = classify_hazard(temp, precip, parse_wind_mph(wind_speed), alerts)
+        return weather(temp, precip, humidity, shortForecast, wind_speed, wind_dir, detailed, alerts, hazard)
     except Exception as e:
         print(f"Weather fetch error: {e}")
-        return weather(0, 0, 0, "Error", "", "", "Unable to fetch weather")
+        return weather(0, 0, 0, "Error", "", "", "Unable to fetch weather", [], "UNKNOWN")
 
 def get_roster():
     """Fetch and parse TrekFest event schedule"""
@@ -390,11 +493,10 @@ def get_roster():
         r = rq.get('https://trekfest.org/event-schedule', timeout=15)
         r.raise_for_status()
         html = r.text
-        
+
         # Extract text blocks from HTML
         text = re.sub(r'<[^>]+>', '\n', html)
-        text = re.sub(r'&nbsp;', ' ', text)
-        text = re.sub(r'&amp;', '&', text)
+        text = unescape(text.replace('&nbsp;', ' '))
         lines = [line.strip() for line in text.split('\n') if line.strip()]
         
         # Parse events: look for time markers and dates
@@ -404,15 +506,20 @@ def get_roster():
             
             # Look for time markers (e.g., "12:30 PM")
             if re.search(r'\d{1,2}:\d{2}\s*(AM|PM|am|pm)', line):
-                start_time = line.strip()
+                time_match = re.search(r'\d{1,2}:\d{2}\s*(AM|PM|am|pm)', line)
+                start_time = time_match.group(0).upper() if time_match else line.strip()
                 event_title = ""
                 event_location = ""
                 
                 # Next few lines are title and location
                 if i + 1 < len(lines):
-                    event_title = lines[i + 1].strip()
+                    event_title = lines[i + 1].strip(" -:•")
                 if i + 2 < len(lines) and not re.search(r'\d{1,2}:\d{2}', lines[i + 2]):
-                    event_location = lines[i + 2].strip()
+                    event_location = lines[i + 2].strip(" -:•")
+                if "@" in event_title and not event_location:
+                    event_title, event_location = [part.strip() for part in event_title.split("@", 1)]
+                if " - " in event_title and not event_location:
+                    event_title, event_location = [part.strip() for part in event_title.split(" - ", 1)]
                 
                 if event_title:
                     event = RosterEvent(
@@ -445,7 +552,10 @@ def refresh_roster():
 def get_roster_page_count():
     if not roster_events:
         return 1
-    return max(1, (len(roster_events) + ROSTER_PAGE_SIZE - 1) // ROSTER_PAGE_SIZE)
+    if len(roster_events) <= 2:
+        return 1
+    remaining = len(roster_events) - 2
+    return 1 + ((remaining + ROSTER_PAGE_SIZE - 1) // ROSTER_PAGE_SIZE)
 
 
 def show_previous_roster_page():
@@ -468,6 +578,8 @@ initialize_gpio()
 window = tk.Tk(className='Tricorder')
 trekFont = "Trek"
 username = "Scott Thunder"
+window_size = os.environ.get("TRICORDER_WINDOW_SIZE", "720x576")
+window.geometry(window_size)
 window.configure(bg='black',width=720,height=576)
 
 window.attributes('-fullscreen', IS_RASPBERRY_PI)
@@ -505,96 +617,120 @@ input_butt = tk.Button(bottomButtons, font=(trekFont,39), text="INPUT", bg=NORMA
 roster_butt = tk.Button(topButtons, font=(trekFont,39), text="DUTY ROSTER", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_roster_page)
 
 # Create separate frames for each page
-planet_page = tk.Frame(window, bg='black')
-captains_log_page = tk.Frame(window, bg='black')
+planet_page = tk.Frame(window, bg='black', padx=PAGE_PAD_X, pady=18)
+captains_log_page = tk.Frame(window, bg='black', padx=PAGE_PAD_X, pady=18)
 player_page = tk.Frame(window, bg='black')
-status_page = tk.Frame(window, bg='black')
-input_page = tk.Frame(window, bg='black')
-roster_page = tk.Frame(window, bg='black')
+status_page = tk.Frame(window, bg='black', padx=PAGE_PAD_X, pady=18)
+input_page = tk.Frame(window, bg='black', padx=PAGE_PAD_X, pady=18)
+roster_page = tk.Frame(window, bg='black', padx=PAGE_PAD_X, pady=18)
 
 # Planet Internal Frames
-pl_header = tk.Frame(planet_page,bg='black',padx=5,pady=5)
+pl_header = tk.Frame(planet_page,bg='black',padx=0,pady=4)
 pl_middle = tk.Frame(planet_page,bg='black')
-temp_frame = tk.Frame(pl_middle,bg='#DAD778',padx=5,pady=5)
+temp_frame = tk.Frame(pl_middle,bg='#DAD778',padx=10,pady=8)
 right_pl_frame = tk.Frame(pl_middle,bg='black',padx=5,pady=5)
-humid_frame = tk.Frame(right_pl_frame,bg='#DAD778',pady=5)
-precip_frame = tk.Frame(right_pl_frame, bg='#DAD778')
-sfc_frame = tk.Frame(planet_page,bg='black', pady=10)
+humid_frame = tk.Frame(right_pl_frame,bg='#DAD778',padx=10,pady=8)
+precip_frame = tk.Frame(right_pl_frame, bg='#DAD778',padx=10,pady=8)
+sfc_frame = tk.Frame(planet_page,bg='black', pady=12)
 
 
 # Add widgets to the planet page (WEATHER)
-planet_label = tk.Label(pl_header, text="Planet Conditions", font=(trekFont,81), bg='black', fg='#DAD778',padx=10)
-planet_back_button = tk.Button(pl_header, font=(trekFont,45), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
+planet_label = tk.Label(pl_header, text="Hazard Scan", font=(trekFont,42), bg='black', fg='#DAD778',padx=10)
+planet_back_button = tk.Button(pl_header, font=(trekFont,26), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=8, pady=4)
 
-temp_title = tk.Label(temp_frame, font=(trekFont,30),text='Temperature:', bg='#DAD778',fg='black', padx=5, pady=5)
-temp_label =tk.Label(temp_frame, font=(trekFont,30),textvariable=tempVar, padx=0, pady=5,bg='#DAD778', fg='black')
-temp_symbol = tk.Label(temp_frame, font=(trekFont,30),text="°", padx=0, bg='#DAD778', fg='black')
-farenheight = tk.Label(temp_frame, text="F",font=(trekFont, 45),padx=15, bg='#DAD778',fg='black')
+temp_title = tk.Label(temp_frame, font=(trekFont,26),text='TEMP', bg='#DAD778',fg='black', padx=5, pady=4)
+temp_label =tk.Label(temp_frame, font=(trekFont,28),textvariable=tempVar, padx=0, pady=4,bg='#DAD778', fg='black')
+temp_symbol = tk.Label(temp_frame, font=(trekFont,26),text="°", padx=0, bg='#DAD778', fg='black')
+farenheight = tk.Label(temp_frame, text="F",font=(trekFont, 30),padx=8, bg='#DAD778',fg='black')
 
-humid_label = tk.Label(humid_frame, font=(trekFont,30),text="Humidity: ",fg='black',bg='#DAD778')
-humid_var_label =tk.Label(humid_frame,font=(trekFont,30),textvariable=humVar, fg='black', bg='#DAD778')
-humidPC_label = tk.Label(humid_frame, font=(trekFont,30),text='%', fg='black', bg='#DAD778')
+humid_label = tk.Label(humid_frame, font=(trekFont,24),text="HUM ",fg='black',bg='#DAD778')
+humid_var_label =tk.Label(humid_frame,font=(trekFont,24),textvariable=humVar, fg='black', bg='#DAD778')
+humidPC_label = tk.Label(humid_frame, font=(trekFont,24),text='%', fg='black', bg='#DAD778')
 
-precip_label = tk.Label(precip_frame, font=(trekFont,30), text='Chance Precip: ', fg='black', bg='#DAD778')
-precip_var_label = tk.Label(precip_frame, font=(trekFont,30),textvariable=precVar, fg='black', bg='#DAD778')
-precipPC_label = tk.Label(precip_frame, font=(trekFont,30), text='%', fg='black', bg='#DAD778')
+precip_label = tk.Label(precip_frame, font=(trekFont,24), text='RAIN ', fg='black', bg='#DAD778')
+precip_var_label = tk.Label(precip_frame, font=(trekFont,24),textvariable=precVar, fg='black', bg='#DAD778')
+precipPC_label = tk.Label(precip_frame, font=(trekFont,24), text='%', fg='black', bg='#DAD778')
 
-sfc_label = tk.Label(sfc_frame, font=(trekFont,30), textvariable=sfcVar, fg='#DAD778', bg='black')
-refresh_weather_button = tk.Button(planet_page, font=(trekFont,30), text="Refresh", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5, command=show_planet_page)
+sfc_label = tk.Label(sfc_frame, font=(trekFont,25), textvariable=sfcVar, fg='#DAD778', bg='black', justify='left', wraplength=PAGE_WRAP)
+refresh_weather_button = tk.Button(planet_page, font=(trekFont,26), text="Refresh", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=8, pady=4, command=show_planet_page)
                        
 # Captain's Log Internal Frames
 
-cl_header = tk.Frame(captains_log_page, bg='black', padx=14, pady=3)
+cl_header = tk.Frame(captains_log_page, bg='black', padx=0, pady=3)
 logHolder = tk.Frame(captains_log_page, bg='black', padx=14, pady=3)
 logsL = tk.Frame(logHolder, bg="black")
 logsR = tk.Frame(logHolder, bg="black")
 
 # Add widgets to the captain's log page
-captains_log_label = tk.Label(cl_header, text="Captain's Log Page", font=(trekFont,75), bg='black', fg='#DAD778', padx=5)
-captains_log_back_button = tk.Button(cl_header, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
+captains_log_label = tk.Label(cl_header, text="Captain's Log", font=(trekFont,42), bg='black', fg='#DAD778', padx=5)
+captains_log_back_button = tk.Button(cl_header, font=(trekFont,26), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=8, pady=4)
 
 # Add status page widgets
-status_label = tk.Label(status_page, text="Status Overview", font=(trekFont,60), bg='black', fg='#DAD778')
-status_back_button = tk.Button(status_page, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
-status_text = tk.Label(status_page, font=(trekFont,26), text="", bg='black', fg='#DAD778', justify='left')
+status_nav = tk.Frame(status_page, bg='black')
+status_label = tk.Label(status_page, text="Subspace Link", font=(trekFont,42), bg='black', fg='#DAD778')
+status_back_button = tk.Button(status_nav, font=(trekFont,26), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=8, pady=4)
+status_refresh_button = tk.Button(status_nav, font=(trekFont,26), text="Refresh", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=8, pady=4, command=refresh_status_text)
+status_text = tk.Label(status_page, font=(trekFont,28), text="", bg='black', fg='#DAD778', justify='left', wraplength=PAGE_WRAP)
 
 # Add input page widgets
-input_label = tk.Label(input_page, text="Command Console", font=(trekFont,60), bg='black', fg='#DAD778')
-input_back_button = tk.Button(input_page, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
-input_entry = tk.Entry(input_page, font=(trekFont,28), width=24, bg='#DAD778', fg='black')
-input_submit_button = tk.Button(input_page, font=(trekFont,30), text="Submit", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
-input_result = tk.Label(input_page, font=(trekFont,26), text="Enter a command or note.", bg='black', fg='#DAD778', wraplength=680, justify='left')
+input_label = tk.Label(input_page, text="Command", font=(trekFont,42), bg='black', fg='#DAD778')
+input_back_button = tk.Button(input_page, font=(trekFont,26), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=8, pady=4)
+input_entry = tk.Entry(input_page, font=(trekFont,26), width=18, bg='#DAD778', fg='black')
+input_submit_button = tk.Button(input_page, font=(trekFont,26), text="Submit", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=8, pady=4)
+input_result = tk.Label(input_page, font=(trekFont,25), text="Enter a command or note.", bg='black', fg='#DAD778', wraplength=PAGE_WRAP, justify='left')
 
 # Add roster page widgets
-roster_header = tk.Frame(roster_page, bg='black', padx=14, pady=3)
-roster_content_frame = tk.Frame(roster_page, bg='black', padx=14, pady=3)
+roster_header = tk.Frame(roster_page, bg='black', padx=0, pady=3)
+roster_controls = tk.Frame(roster_page, bg='black', padx=0, pady=3)
+roster_content_frame = tk.Frame(roster_page, bg='black', padx=0, pady=3)
 roster_scroll = tk.Frame(roster_content_frame, bg='black')
 
-roster_label = tk.Label(roster_header, text="Duty Roster", font=(trekFont,75), bg='black', fg='#DAD778', padx=5)
-roster_back_button = tk.Button(roster_header, font=(trekFont,30), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
-roster_prev_button = tk.Button(roster_header, font=(trekFont,30), text="Prev", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
-roster_next_button = tk.Button(roster_header, font=(trekFont,30), text="Next", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
-roster_refresh_button = tk.Button(roster_header, font=(trekFont,30), text="Refresh", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=5, pady=5)
-roster_page_label = tk.Label(roster_header, text="", font=(trekFont,24), bg='black', fg='#DAD778', padx=5)
-roster_text = tk.Label(roster_scroll, font=(trekFont,22), text="Loading events...", bg='black', fg='#DAD778', justify='left', wraplength=650)
+roster_label = tk.Label(roster_header, text="Duty Roster", font=(trekFont,42), bg='black', fg='#DAD778', padx=5)
+roster_back_button = tk.Button(roster_controls, font=(trekFont,24), text="Back", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=6, pady=3)
+roster_prev_button = tk.Button(roster_controls, font=(trekFont,24), text="Prev", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=6, pady=3)
+roster_next_button = tk.Button(roster_controls, font=(trekFont,24), text="Next", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=6, pady=3)
+roster_refresh_button = tk.Button(roster_controls, font=(trekFont,24), text="Refresh", bg=NORMAL_BUTTON_BG, activebackground=HIGHLIGHT_BUTTON_BG, fg='black', padx=6, pady=3)
+roster_page_label = tk.Label(roster_header, text="", font=(trekFont,20), bg='black', fg='#DAD778', padx=5)
+roster_text = tk.Label(roster_scroll, font=(trekFont,30), text="Loading events...", bg='black', fg='#DAD778', justify='left', wraplength=PAGE_WRAP)
 
 def update_roster_display():
     """Update the roster display with fetched events"""
     if not roster_events:
-        roster_text.config(text="No events found for TrekFest.")
+        roster_text.config(text="NO EVENTS FOUND\nPress REFRESH to scan again.")
         roster_page_label.config(text="Page 1 of 1")
         roster_prev_button.config(state=tk.DISABLED)
         roster_next_button.config(state=tk.DISABLED)
     else:
         page_count = get_roster_page_count()
-        start = roster_page_index * ROSTER_PAGE_SIZE
+        if roster_page_index == 0:
+            start = 0
+        else:
+            start = 2 + ((roster_page_index - 1) * ROSTER_PAGE_SIZE)
         end = start + ROSTER_PAGE_SIZE
-        text_output = ""
-        for event in roster_events[start:end]:
-            text_output += f"{event.start} - {event.title}\n"
-            if event.location:
-                text_output += f"  Location: {event.location}\n"
-            text_output += "\n"
+        lines = []
+        if roster_page_index == 0:
+            now_event = roster_events[0]
+            lines.append(f"NOW: {now_event.start}")
+            lines.append(now_event.title)
+            if now_event.location:
+                lines.append(f"AT: {now_event.location}")
+            if len(roster_events) > 1:
+                next_event = roster_events[1]
+                lines.append("")
+                lines.append(f"NEXT: {next_event.start}")
+                lines.append(next_event.title)
+                if next_event.location:
+                    lines.append(f"AT: {next_event.location}")
+            if len(roster_events) > 2:
+                lines.append("")
+                lines.append("MORE: press NEXT")
+        else:
+            for event in roster_events[start:end]:
+                lines.append(f"{event.start}  {event.title}")
+                if event.location:
+                    lines.append(f"AT: {event.location}")
+                lines.append("")
+        text_output = "\n".join(lines).strip()
         roster_text.config(text=text_output if text_output else "No events available.")
         roster_page_label.config(text=f"Page {roster_page_index + 1} of {page_count}")
         roster_prev_button.config(state=tk.NORMAL if roster_page_index > 0 else tk.DISABLED)
@@ -758,9 +894,11 @@ for new_button in video_buttons:
 
 
 
-status_label.pack(pady=20)
-status_back_button.pack(side='left', pady=10)
-status_text.pack(pady=20, padx=20)
+status_label.pack(pady=10)
+status_nav.pack(pady=8)
+status_back_button.pack(side='left', padx=8)
+status_refresh_button.pack(side='left', padx=8)
+status_text.pack(pady=18, padx=0)
 
 input_label.pack(pady=20)
 input_back_button.pack(side='left', pady=10)
@@ -771,12 +909,13 @@ input_result.pack(pady=15, padx=20)
 
 # Pack roster page widgets
 roster_header.pack()
-roster_back_button.pack(side='left')
 roster_label.pack(side='left')
 roster_page_label.pack(side='left')
+roster_controls.pack()
+roster_back_button.pack(side='left', padx=5)
 roster_prev_button.pack(side='left')
 roster_next_button.pack(side='left')
-roster_refresh_button.pack(side='left')
+roster_refresh_button.pack(side='left', padx=5)
 roster_content_frame.pack(fill='both', expand=True)
 roster_scroll.pack(fill='both', expand=True)
 roster_text.pack(pady=20, padx=20)

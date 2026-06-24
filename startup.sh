@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Navigate to the desired directory
-cd /home/tricorder/Desktop/Tricorder/TricorderV2 || exit 1
+# Navigate to the repository directory no matter where it was cloned.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR" || exit 1
 
 # Update the repository and install Python dependencies if needed
 git pull --ff-only
