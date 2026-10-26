@@ -55,12 +55,12 @@ public:
         size_t pending = app.subspace.pending().size();
         if (app.redAlertActive()) {
             bool on = std::fmod(app.time(), 1.0) < 0.6;
-            g.text("WEATHER ALERT - SEE PLANET", kW / 2, 512, 24, on ? pal::RED : mix(pal::RED, pal::BLACK, 0.5f),
+            g.text("WEATHER ALERT", kW / 2, 510, 28, on ? pal::RED : mix(pal::RED, pal::BLACK, 0.5f),
                    Align::Center);
         } else if (pending > 0) {
             bool on = std::fmod(app.time(), 1.2) < 0.8;
-            std::string m = std::to_string(pending) + (pending == 1 ? " TRANSMISSION" : " TRANSMISSIONS") + " AWAITING CLEARANCE";
-            g.text(m, kW / 2, 514, g.fitSize(m, 400, 22), on ? pal::YELLOW : pal::DIM_YELLOW, Align::Center);
+            std::string m = std::to_string(pending) + " WAITING";
+            g.text(m, kW / 2, 510, 28, on ? pal::YELLOW : pal::DIM_YELLOW, Align::Center);
         } else if (app.cfg.lights) {
             drawLights(g, kW / 2 - 51, 520, 6, app.time());
         }

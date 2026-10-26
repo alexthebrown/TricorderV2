@@ -111,7 +111,7 @@ public:
                 g.fill({int(p.x) - s, int(p.y) - s, 2 * s, 2 * s}, bodyColor(Body(b)));
             }
             std::string label = bodyName(Body(b));
-            g.text(label, int(p.x) + 12, int(p.y) - 9, 16, bodyColor(Body(b)));
+            g.text(label, int(p.x) + 12, int(p.y) - 12, 22, bodyColor(Body(b)));
         }
 
         // Readouts
@@ -119,65 +119,64 @@ public:
         char buf[64];
         tm lt;
         localtime_r(&t, &lt);
-        strftime(buf, sizeof buf, "%a %d %b  %H:%M", &lt);
+        strftime(buf, sizeof buf, "%a %H:%M", &lt);
         std::string when = buf;
         for (auto& c : when) c = char(toupper(static_cast<unsigned char>(c)));
-        g.text(when, x, y, 24, offset_ ? pal::RED : pal::GREEN);
+        g.text(when, x, y, 30, offset_ ? pal::RED : pal::GREEN);
         if (offset_) {
             long h = offset_ / 3600;
             snprintf(buf, sizeof buf, "%+ldH", h);
-            g.text(buf, right, y, 24, pal::RED, Align::Right);
+            g.text(buf, right, y, 30, pal::RED, Align::Right);
         }
-        y += 34;
+        y += 42;
 
         refreshTimes(t, loc);
         const RiseSet& sun = cache_.sunPrev;
         const RiseSet& sunNext = cache_.rs[Sun];
-        g.text("SUN", x, y, 24, pal::YELLOW);
-        std::string sunTxt = "RISE " + (sun.rise ? hhmm(sun.rise) : "--") + "  SET " +
-                             (sunNext.set ? hhmm(sunNext.set) : "--");
-        g.text(sunTxt, right, y, 22, pal::YELLOW, Align::Right);
-        y += 40;
+        // Sunrise/sunset as two big lines with drawn up/down arrows (no tiny "RISE"/"SET" words).
+        auto arrowRow = [&](const std::string& label, time_t up, time_t down, Color c) {
+            g.text(label, x, y, 28, c);
+            int ax = right - 190;
+            g.triangle({ax + 0.f, y + 24.f}, {ax + 16.f, y + 24.f}, {ax + 8.f, y + 8.f}, c);
+            g.text(up ? hhmm(up) : "--", ax + 22, y, 28, c);
+            ax += 98;
+            g.triangle({ax + 0.f, y + 8.f}, {ax + 16.f, y + 8.f}, {ax + 8.f, y + 24.f}, c);
+            g.text(down ? hhmm(down) : "--", ax + 22, y, 28, c);
+            y += 40;
+        };
+        arrowRow("SUN", sun.rise, sunNext.set, pal::YELLOW);
 
-        // Moon block
-        drawMoon(g, float(x + 30), float(y + 32), 30, phase);
-        g.text(phase.name, x + 74, y + 4, 24, pal::YELLOW);
-        snprintf(buf, sizeof buf, "%.0f%% LIT", phase.illumination * 100);
-        g.text(buf, x + 74, y + 34, 20, pal::GREEN);
         const RiseSet& mr = cache_.rs[Moon];
-        std::string mtxt = (mr.rise ? "RISE " + hhmm(mr.rise) : std::string("")) +
-                           (mr.set ? (mr.rise ? "  SET " : "SET ") + hhmm(mr.set) : std::string(""));
-        g.text(mtxt, right, y + 34, 20, pal::GREEN, Align::Right);
-        y += 80;
+        arrowRow("MOON", mr.rise, mr.set, pal::WHITE);
+        // Moon block
+        drawMoon(g, float(x + 26), float(y + 28), 26, phase);
+        g.text(g.ellipsize(phase.name, 28, right - x - 64), x + 64, y, 28, pal::YELLOW);
+        snprintf(buf, sizeof buf, "%.0f%% LIT", phase.illumination * 100);
+        g.text(buf, x + 64, y + 30, 26, pal::GREEN);
+        y += 66;
 
         g.fill({x, y, right - x, 2}, pal::DIM_GREEN);
         y += 10;
         for (int b = Mercury; b <= Saturn; ++b) {
             Horizontal h = altAz(Body(b), t, loc.lat, loc.lon);
-            g.fill({x, y + 7, 10, 10}, bodyColor(Body(b)));
-            g.text(bodyName(Body(b)), x + 18, y, 22, pal::GREEN);
+            g.fill({x, y + 9, 12, 12}, bodyColor(Body(b)));
+            g.text(bodyName(Body(b)), x + 20, y, 28, pal::GREEN);
             std::string s;
             Color c = pal::YELLOW;
             if (h.alt > 0) {
-                snprintf(buf, sizeof buf, "UP %.0f\xC2\xB0 %s", h.alt, compassPoint(h.az).c_str());
+                snprintf(buf, sizeof buf, "UP %s", compassPoint(h.az).c_str());
                 s = buf;
-                if (sunH.alt > -6) {
-                    s += "  DAY";
-                    c = pal::DIM_YELLOW;
-                }
+                if (sunH.alt > -6) c = pal::DIM_YELLOW;  // above the horizon but lost in daylight
             } else {
                 const RiseSet& r = cache_.rs[b];
-                s = r.rise ? "RISES " + hhmm(r.rise) : "BELOW HORIZON";
+                s = r.rise ? "\xE2\x86\x91" + hhmm(r.rise) : "DOWN";
                 c = pal::DIM_YELLOW;
             }
-            g.text(s, right, y, 22, c, Align::Right);
-            y += 32;
+            g.text(s, right, y, 28, c, Align::Right);
+            y += 38;
         }
 
-        snprintf(buf, sizeof buf, "%.2f%c %.2f%c", std::fabs(loc.lat), loc.lat >= 0 ? 'N' : 'S', std::fabs(loc.lon),
-                 loc.lon >= 0 ? 'E' : 'W');
-        g.text(std::string(buf) + (loc.known ? "" : " (APPROX)"), x, kH - 56, 18, pal::DIM_YELLOW);
-        g.text("< > HOURS   ^ v DAYS   ENTER NOW", x, kH - 32, 18, pal::DIM_YELLOW);
+        g.text("< > HOUR   ^ v DAY", x, kH - 40, 24, pal::DIM_YELLOW);
     }
 
 private:

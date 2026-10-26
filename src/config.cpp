@@ -59,6 +59,7 @@ const std::vector<Field>& fields() {
         INT_FIELD("overscan_y", overscanY),
         FLT_FIELD("pixel_aspect", pixelAspect),
         BOOL_FIELD("lights", lights),
+        BOOL_FIELD("bold_text", boldText),
         BOOL_FIELD("boot_sequence", bootSequence),
         STR_FIELD("hw_decode", hwDecode),
         BOOL_FIELD("video_fill", videoFill),

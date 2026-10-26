@@ -122,15 +122,15 @@ void drawLights(Gfx& g, int x, int y, int count, double t, int size, bool busy) 
 void drawReadout(Gfx& g, SDL_Rect r, const std::string& label, const std::string& value, int valuePx, double bar,
                  Color valueColor) {
     g.fill(r, pal::YELLOW);
-    int labelPx = std::min(24, r.h / 3);
+    int labelPx = std::min(30, r.h / 3);
     g.text(label, r.x + 10, r.y + 6, labelPx, pal::BLACK);
     int vy = r.y + 6 + g.lineHeight(labelPx) - 2;
-    int barH = bar >= 0 ? 8 : 0;
+    int barH = bar >= 0 ? 12 : 0;
     int vh = r.y + r.h - vy - barH - 6;
     int px = std::min(valuePx, g.fitSize(value, r.w - 20, valuePx));
     g.textIn({r.x + 10, vy, r.w - 20, vh}, value, px, valueColor, Align::Left);
     if (bar >= 0) {
-        SDL_Rect track{r.x + 10, r.y + r.h - 14, r.w - 20, 8};
+        SDL_Rect track{r.x + 10, r.y + r.h - 16, r.w - 20, 10};
         g.fill(track, mix(pal::YELLOW, pal::BLACK, 0.3f));
         g.fill({track.x, track.y, int(track.w * std::clamp(bar, 0.0, 1.0)), track.h},
                bar > 0.85 ? pal::RED : pal::DIM_GREEN);
@@ -157,7 +157,7 @@ void drawScope(Gfx& g, SDL_Rect r, const std::vector<float>& samples, Color trac
                            mid - std::clamp(samples[i], -1.f, 1.f) * amp});
         g.polyline(pts, trace, 2);
     }
-    if (!caption.empty()) g.text(caption, r.x + 8, r.y + 6, 18, pal::YELLOW);
+    if (!caption.empty()) g.text(caption, r.x + 8, r.y + 6, 24, pal::YELLOW);
 }
 
 void drawQr(Gfx& g, const std::string& text, int x, int y, int size) {

@@ -84,32 +84,31 @@ public:
         std::string addr = app.subspaceAddress();
         std::string line = addr.empty() ? "LOCAL LINK: " + std::string(app.subspace.running() ? "NO NETWORK" : "OFF")
                                         : "LOCAL LINK: " + addr;
-        g.text(g.ellipsize(line, 18, kW - 36), 18, 80, 18, addr.empty() ? pal::DIM_YELLOW : pal::GREEN);
+        g.text(g.ellipsize(line, 24, kW - 36), 18, 78, 24, addr.empty() ? pal::DIM_YELLOW : pal::GREEN);
         if (relayOn) {
             std::string st = app.relay.status();
-            g.text("VISITOR RELAY: " + st, 18, 100, 18, st == "ONLINE" ? pal::GREEN : pal::RED);
+            g.text("RELAY " + st, 18, 106, 24, st == "ONLINE" ? pal::GREEN : pal::RED);
+            // The frequency (ntfy topic) the QR code points at, so you can tell which one is live.
+            g.text(app.relay.topic(), kW - 18 - 236, 109, 20, pal::DIM_YELLOW, Align::Right);
         }
         std::string up = app.subspace.uploadStatus();
-        if (!up.empty()) g.text(up, kW - 18, 100, 18, pal::YELLOW, Align::Right);
+        if (!up.empty()) g.text(up, kW - 18, 106, 24, pal::YELLOW, Align::Right);
 
         auto items = collect();
         int listW = relayOn ? kW - 28 - 236 : kW - 28;
         if (relayOn) {
             int qx = kW - 18 - 220;
-            drawQr(g, url, qx, 128, 220);
-            g.text("SCAN TO TRANSMIT", qx + 110, 352, 22, pal::YELLOW, Align::Center);
+            drawQr(g, url, qx, 140, 220);
+            g.text("SCAN TO SEND", qx + 110, 366, 28, pal::YELLOW, Align::Center);
             if (!app.cfg.smsNumber.empty()) {
-                g.text("OR TEXT \"TRICORDER\"", qx + 110, 384, 18, pal::GREEN, Align::Center);
-                g.text("+ MESSAGE TO", qx + 110, 406, 18, pal::GREEN, Align::Center);
-                g.text(app.cfg.smsNumber, qx + 110, 430, 22, pal::YELLOW, Align::Center);
+                g.text("OR TEXT TO", qx + 110, 404, 24, pal::GREEN, Align::Center);
+                g.text(app.cfg.smsNumber, qx + 110, 434, 28, pal::YELLOW, Align::Center);
             }
         }
 
         if (items.empty()) {
             int cx = 14 + listW / 2;
-            g.text("NO TRANSMISSIONS", cx, 230, 30, pal::YELLOW, Align::Center);
-            g.text(relayOn ? "Visitors scan the code to send one" : "Open the local link on a phone to send one", cx,
-                   276, 20, pal::DIM_YELLOW, Align::Center);
+            g.text("NO TRANSMISSIONS", cx, 240, 34, pal::YELLOW, Align::Center);
             return;
         }
         if (open_ && sel_ >= 0 && sel_ < int(items.size())) {
@@ -121,18 +120,20 @@ public:
             int i = first_ + row;
             if (i >= int(items.size())) break;
             const Item& it = items[i];
-            SDL_Rect r{14, 128 + row * 68, listW, 58};
+            SDL_Rect r{14, 142 + row * 80, listW, 72};
             bool f = i == sel_;
             if (f) g.outline({r.x - 4, r.y - 4, r.w + 8, r.h + 8}, pal::YELLOW, 2);
             Color bg = it.pending ? pal::RED : (it.m.read ? pal::GREEN : pal::YELLOW);
             g.bevel(r, bg, f);
             int off = f ? 1 : 0;
             std::string head = it.pending ? "AWAITING CLEARANCE" : it.m.from;
-            g.text(g.ellipsize(head, 22, r.w - 130), r.x + 12 + off, r.y + 4 + off, 22, pal::BLACK);
-            g.text(stamp(it.m.when), r.x + r.w - 12 + off, r.y + 6 + off, 16, mix(bg, pal::BLACK, 0.6f), Align::Right);
+            std::string when = stampShort(it.m.when);
+            int ww = g.textWidth(when, 22) + 16;
+            g.text(g.ellipsize(head, 28, r.w - 24 - ww), r.x + 12 + off, r.y + 4 + off, 28, pal::BLACK);
+            g.text(when, r.x + r.w - 12 + off, r.y + 8 + off, 22, pal::BLACK, Align::Right);
             // Pending text stays hidden in the list; the operator opens it to review.
-            std::string body = it.pending ? "FROM " + it.m.from + " - OPEN TO REVIEW" : it.m.text;
-            g.text(g.ellipsize(body, 18, r.w - 24), r.x + 12 + off, r.y + 32 + off, 18, mix(bg, pal::BLACK, 0.6f));
+            std::string body = it.pending ? "FROM " + it.m.from : it.m.text;
+            g.text(g.ellipsize(body, 24, r.w - 24), r.x + 12 + off, r.y + 38 + off, 24, pal::BLACK);
         }
     }
 
@@ -144,7 +145,7 @@ private:
         return v;
     }
 
-    static int visibleRows() { return 6; }
+    static int visibleRows() { return 5; }
 
     void markRead(const std::vector<Item>& items) {
         if (sel_ < 0 || sel_ >= int(items.size()) || items[sel_].pending) return;
@@ -155,32 +156,36 @@ private:
 
     void renderOpen(Gfx& g, const Item& it) {
         int w = app.visitorUrl().empty() ? kW - 36 : kW - 36 - 236;
-        SDL_Rect box{18, 128, w, kH - 150};
+        SDL_Rect box{18, 142, w, kH - 160};
         g.outline(box, it.pending ? pal::RED : pal::YELLOW, 2);
-        g.text("FROM: " + g.ellipsize(it.m.from, 26, box.w - 200), box.x + 14, box.y + 10, 26, pal::GREEN);
-        g.text(stamp(it.m.when), box.x + box.w - 14, box.y + 16, 16, pal::DIM_YELLOW, Align::Right);
-        auto lines = g.wrap(it.m.text, 28, box.w - 28);
-        int y = box.y + 54;
+        g.text(g.ellipsize(it.m.from, 30, box.w - 130), box.x + 14, box.y + 10, 30, pal::GREEN);
+        g.text(stampShort(it.m.when), box.x + box.w - 14, box.y + 14, 24, pal::DIM_YELLOW, Align::Right);
+        auto lines = g.wrap(it.m.text, 32, box.w - 28);
+        int y = box.y + 56;
         int bottom = box.y + box.h - (it.pending ? 70 : 20);
-        for (size_t i = 0; i < lines.size() && y < bottom; ++i, y += 34) g.text(lines[i], box.x + 14, y, 28, pal::YELLOW);
+        for (size_t i = 0; i < lines.size() && y < bottom; ++i, y += 40) g.text(lines[i], box.x + 14, y, 32, pal::YELLOW);
         if (it.pending) {
             int bw = (box.w - 42) / 2;
-            g.button({box.x + 14, box.y + box.h - 60, bw, 46}, "ENTER: DISPLAY", 24, true);
-            SDL_Rect rej{box.x + 28 + bw, box.y + box.h - 60, bw, 46};
+            g.button({box.x + 14, box.y + box.h - 60, bw, 50}, "OK: SHOW", 28, true);
+            SDL_Rect rej{box.x + 28 + bw, box.y + box.h - 60, bw, 50};
             g.bevel(rej, pal::RED, false);
-            g.textIn(rej, "LEFT: REJECT", 24, pal::BLACK);
+            g.textIn(rej, "< REJECT", 28, pal::BLACK);
         }
     }
 
-    static std::string stamp(time_t t) {
-        tm lt;
+    // "19:21" today, otherwise "OCT 25".
+    static std::string stampShort(time_t t) {
+        tm lt, nt;
+        time_t now = time(nullptr);
         localtime_r(&t, &lt);
-        char b[32];
-        strftime(b, sizeof b, "%b %d %H:%M", &lt);
+        localtime_r(&now, &nt);
+        char b[16];
+        strftime(b, sizeof b, lt.tm_yday == nt.tm_yday && lt.tm_year == nt.tm_year ? "%H:%M" : "%b %d", &lt);
         std::string s = b;
         for (auto& c : s) c = char(toupper(static_cast<unsigned char>(c)));
         return s;
     }
+
 
     int sel_ = -1, first_ = 0;
     bool open_ = false;

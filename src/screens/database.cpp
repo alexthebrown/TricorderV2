@@ -115,35 +115,42 @@ public:
             return;
         }
         if (level_ == 0) {
-            g.text("SELECT CATEGORY", 18, 84, 22, pal::GREEN);
+            g.text("SELECT CATEGORY", 18, 80, 28, pal::GREEN);
             for (int i = 0; i < int(cats_.size()); ++i) {
                 SDL_Rect r{120, 118 + i * 72, kW - 240, 60};
                 g.button(r, cats_[i].name, 34, i == sel_);
                 std::string n = std::to_string(cats_[i].entries.size());
-                g.text(n, r.x + r.w + 14, r.y + 16, 22, pal::DIM_YELLOW);
+                g.text(n, r.x + r.w + 14, r.y + 12, 30, pal::DIM_YELLOW);
             }
         } else if (level_ == 1) {
             const Category& c = cats_[cat_];
-            g.text(c.name, 18, 84, 22, pal::GREEN);
+            g.text(c.name, 18, 80, 28, pal::GREEN);
             int colW = (kW - 28 - 14) / 2;
-            for (int i = 0; i < int(c.entries.size()) && i < 14; ++i) {
-                SDL_Rect r{14 + (i % 2) * (colW + 14), 118 + (i / 2) * 62, colW, 52};
-                g.button(r, c.entries[i].title, 26, i == sel_);
+            // Six rows a page; the page follows the selection.
+            int pageFirst = sel_ < 0 ? 0 : (sel_ / 12) * 12;
+            for (int i = pageFirst; i < int(c.entries.size()) && i < pageFirst + 12; ++i) {
+                int k = i - pageFirst;
+                SDL_Rect r{14 + (k % 2) * (colW + 14), 120 + (k / 2) * 72, colW, 60};
+                g.button(r, c.entries[i].title, 30, i == sel_);
+            }
+            if (int(c.entries.size()) > 12) {
+                std::string pg = std::to_string(pageFirst / 12 + 1) + " / " + std::to_string((c.entries.size() + 11) / 12);
+                g.text(pg, kW - 18, 80, 28, pal::DIM_YELLOW, Align::Right);
             }
         } else {
             const Category& c = cats_[cat_];
             const Entry& e = c.entries[entry_];
-            g.text(c.name + "  " + std::to_string(entry_ + 1) + " / " + std::to_string(c.entries.size()), 18, 84, 22,
+            g.text(c.name + "  " + std::to_string(entry_ + 1) + " / " + std::to_string(c.entries.size()), 18, 80, 28,
                    pal::GREEN);
             SDL_Rect box{18, 116, kW - 36, kH - 140};
             g.outline(box, pal::YELLOW, 2);
             g.text(g.ellipsize(e.title, 34, box.w - 32), box.x + 16, box.y + 10, 34, pal::YELLOW);
-            auto lines = g.wrap(e.text, 26, box.w - 32);
-            const int lh = 32, visible = (box.h - 70) / lh;
+            auto lines = g.wrap(e.text, 32, box.w - 32);
+            const int lh = 40, visible = (box.h - 70) / lh;
             maxScroll_ = std::max(0, int(lines.size()) - visible);
             scroll_ = std::min(scroll_, maxScroll_);
             for (int i = 0; i < visible && scroll_ + i < int(lines.size()); ++i)
-                g.text(lines[scroll_ + i], box.x + 16, box.y + 58 + i * lh, 26, pal::GREEN);
+                g.text(lines[scroll_ + i], box.x + 16, box.y + 58 + i * lh, 32, pal::GREEN);
             if (scroll_ > 0) g.triangle({kW - 50.f, box.y + 24.f}, {kW - 30.f, box.y + 24.f}, {kW - 40.f, box.y + 12.f}, pal::YELLOW);
             if (scroll_ < maxScroll_)
                 g.triangle({kW - 50.f, box.y + box.h - 22.f}, {kW - 30.f, box.y + box.h - 22.f}, {kW - 40.f, box.y + box.h - 10.f}, pal::YELLOW);

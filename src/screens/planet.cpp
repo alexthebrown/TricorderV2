@@ -64,11 +64,12 @@ public:
         std::string sfc = w.shortForecast;
         g.text(sfc, kW / 2, 300, g.fitSize(sfc, kW - 40, 40), pal::YELLOW, Align::Center);
 
-        // Forecast strip: 12 hours with a temperature trace and precipitation bars.
-        SDL_Rect strip{18, 352, kW - 36, 140};
+        // Forecast strip: the next 6 hours, with a temperature trace and precipitation bars.
+        // (Kept to 6 so the numbers stay big enough for the tricorder's small screen.)
+        SDL_Rect strip{18, 350, kW - 36, 146};
         g.outline(strip, pal::GREEN, 2);
         if (!w.hours.empty()) {
-            int n = int(std::min<size_t>(12, w.hours.size()));
+            int n = int(std::min<size_t>(6, w.hours.size()));
             int lo = 999, hi = -999;
             for (int i = 0; i < n; ++i) {
                 lo = std::min(lo, w.hours[i].temp);
@@ -83,10 +84,10 @@ public:
                 int barH = int(h.precip / 100.0 * 40);
                 g.fill({int(cx - cw / 2 + 4), strip.y + strip.h - 26 - barH, int(cw - 8), barH},
                        withAlpha(pal::BLUE, 170));
-                float ty = strip.y + 62 - (h.temp - lo) / float(hi - lo) * 34;
+                float ty = strip.y + 74 - (h.temp - lo) / float(hi - lo) * 30;
                 pts.push_back({cx, ty});
-                g.text(std::to_string(h.temp), int(cx), int(ty) - 30, 20, pal::YELLOW, Align::Center);
-                if (i % 2 == 0 || n <= 6) g.text(h.label, int(cx), strip.y + strip.h - 24, 18, pal::GREEN, Align::Center);
+                g.text(std::to_string(h.temp) + "\xC2\xB0", int(cx), int(ty) - 40, 32, pal::YELLOW, Align::Center);
+                g.text(h.label, int(cx), strip.y + strip.h - 34, 28, pal::GREEN, Align::Center);
             }
             g.polyline(pts, pal::YELLOW, 2);
         }
@@ -106,21 +107,20 @@ public:
             if (alerts.size() > 1) line += "  (+" + std::to_string(alerts.size() - 1) + " MORE)";
             for (auto& c : line) c = char(toupper(static_cast<unsigned char>(c)));
             bool on = !a.red() || std::fmod(app.time(), 1.0) < 0.6;
-            g.text(g.ellipsize(line, 24, kW - 200), 22, kH - 54, 24, a.red() ? (on ? pal::RED : pal::DIM_YELLOW) : pal::YELLOW);
-            if (busy) drawLights(g, 22, kH - 24, 6, app.time(), 10, true);
+            g.text(g.ellipsize(line, 28, kW - 200), 22, kH - 62, 28, a.red() ? (on ? pal::RED : pal::DIM_YELLOW) : pal::YELLOW);
             return;
         }
 
         // Status line.
         std::string status;
-        if (w.simulated) status = "SENSOR ESTIMATE - NO SUBSPACE LINK";
-        else if (w.fetched > 0) {
+        if (!w.simulated && w.fetched > 0) {
             long mins = long(difftime(time(nullptr), w.fetched) / 60);
-            status = mins < 1 ? "UPDATED JUST NOW" : "UPDATED " + std::to_string(mins) + " MIN AGO";
+            status = mins < 1 ? "UPDATED JUST NOW" : "UPDATED " + std::to_string(mins) + "M AGO";
             if (!w.error.empty()) status += " (OFFLINE)";
         }
-        g.text(status, 22, kH - 52, 22, w.simulated ? pal::RED : pal::GREEN);
-        if (busy) drawLights(g, 22, kH - 24, 6, app.time(), 10, true);
+        if (busy) status = "SCANNING ATMOSPHERE...";
+        else if (w.simulated) status = "SENSOR ESTIMATE";
+        g.text(g.ellipsize(status, 28, kW - 200), 22, kH - 62, 28, w.simulated ? pal::RED : pal::GREEN);
     }
 
 private:

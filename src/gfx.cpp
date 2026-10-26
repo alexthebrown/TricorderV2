@@ -121,6 +121,7 @@ bool Gfx::init(const Config& cfg, std::string& err) {
     SDL_SetRenderDrawBlendMode(ren_, SDL_BLENDMODE_BLEND);
     if (fullscreen_) SDL_ShowCursor(SDL_DISABLE);
     setOverscan(cfg.overscanX, cfg.overscanY);
+    setBold(cfg.boldText);
     return true;
 }
 
@@ -450,6 +451,10 @@ void Gfx::text(const std::string& s, int x, int y, int px, Color c, Align a) {
         int dy = runs[i].second ? std::max(0, (baseH - t->h) / 4) : 0;
         SDL_Rect dst{int(std::lround(p.x)), int(std::lround(p.y)) + dy, t->w, t->h};
         SDL_RenderCopy(ren_, t->tex, nullptr, &dst);
+        if (bold_) {  // a second copy one pixel over thickens every stroke
+            dst.x += std::max(1, int(std::lround(sx_)));
+            SDL_RenderCopy(ren_, t->tex, nullptr, &dst);
+        }
         p.x += float(t->w);
     }
 }

@@ -42,6 +42,8 @@ overscan_y = 0
 # 1.0667 corrects video geometry for 720x576 PAL shown on a 4:3 screen.
 pixel_aspect = 1.0
 lights = true
+# Heavier text for blurry composite screens (default: on for a Raspberry Pi).
+# bold_text = true
 boot_sequence = true
 
 # Video

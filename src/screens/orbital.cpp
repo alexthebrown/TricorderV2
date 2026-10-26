@@ -12,7 +12,7 @@
 
 namespace {
 
-const SDL_Rect kMap{14, 84, kW - 28, 346};
+const SDL_Rect kMap{14, 82, kW - 28, 280};
 
 SDL_FPoint toMap(double lat, double lon) {
     return {float(kMap.x + (lon + 180) / 360 * kMap.w), float(kMap.y + (90 - lat) / 180 * kMap.h)};
@@ -81,56 +81,53 @@ public:
         SDL_FPoint me = toMap(loc.lat, loc.lon);
         g.line(me.x - 7, me.y, me.x + 7, me.y, pal::GREEN);
         g.line(me.x, me.y - 7, me.x, me.y + 7, pal::GREEN);
-        g.text("YOU", int(me.x) + 8, int(me.y) + 2, 16, pal::GREEN);
+        g.text("YOU", int(me.x) + 8, int(me.y) + 2, 22, pal::GREEN);
 
         // The station
         orbit::State s = orbit::propagate(tle, now);
         SDL_FPoint p = toMap(s.lat, s.lon);
         bool blink = std::fmod(app.time(), 1.0) < 0.6;
         g.fill({int(p.x) - 6, int(p.y) - 6, 12, 12}, blink ? pal::WHITE : pal::YELLOW);
-        g.text("ISS", int(p.x) + 10, int(p.y) - 22, 20, pal::WHITE);
+        g.text("ISS", int(p.x) + 10, int(p.y) - 28, 26, pal::WHITE);
 
-        // Readouts
+        // Readouts (big: the tricorder's composite screen can't show small text)
         char buf[96];
-        int y = 440;
-        snprintf(buf, sizeof buf, "%.1f%c  %.1f%c", std::fabs(s.lat), s.lat >= 0 ? 'N' : 'S', std::fabs(s.lon),
+        int y = 374;
+        snprintf(buf, sizeof buf, "%.0f%c %.0f%c", std::fabs(s.lat), s.lat >= 0 ? 'N' : 'S', std::fabs(s.lon),
                  s.lon >= 0 ? 'E' : 'W');
-        g.text("POSITION", 18, y, 20, pal::GREEN);
-        g.text(buf, 150, y, 20, pal::YELLOW);
-        snprintf(buf, sizeof buf, "%.0f KM  (%.0f MI)", s.altKm, s.altKm * 0.621371);
-        g.text("ALTITUDE", 18, y + 28, 20, pal::GREEN);
-        g.text(buf, 150, y + 28, 20, pal::YELLOW);
+        g.text(buf, 18, y, 30, pal::YELLOW);
+        snprintf(buf, sizeof buf, "%.0f KM UP", s.altKm);
+        g.text(buf, 18, y + 40, 30, pal::YELLOW);
         snprintf(buf, sizeof buf, "%.0f KM/H", s.speedKmh);
-        g.text("VELOCITY", 18, y + 56, 20, pal::GREEN);
-        g.text(buf, 150, y + 56, 20, pal::YELLOW);
-        g.text(s.sunlit ? "IN SUNLIGHT" : "IN EARTH'S SHADOW", 18, y + 84, 20, s.sunlit ? pal::YELLOW : pal::DIM_YELLOW);
+        g.text(buf, 18, y + 80, 30, pal::YELLOW);
+        g.text(s.sunlit ? "SUNLIT" : "IN SHADOW", 18, y + 120, 30, s.sunlit ? pal::GREEN : pal::DIM_YELLOW);
 
-        int x = 380;
+        int x = 330;
         orbit::Look look = orbit::lookAngles(s, now, loc.lat, loc.lon);
         if (look.el > 0) {
             bool on = std::fmod(app.time(), 1.0) < 0.6;
-            g.text("OVERHEAD NOW", x, y, 24, on ? pal::RED : pal::YELLOW);
-            snprintf(buf, sizeof buf, "ELEVATION %.0f\xC2\xB0  %s", look.el, astroDir(look.az).c_str());
-            g.text(buf, x, y + 30, 20, pal::YELLOW);
+            g.text("OVERHEAD NOW", x, y, 34, on ? pal::RED : pal::YELLOW);
+            snprintf(buf, sizeof buf, "LOOK %s %.0f\xC2\xB0 UP", astroDir(look.az).c_str(), look.el);
+            g.text(buf, x, y + 46, 30, pal::YELLOW);
         } else {
             if (now - passesAt_ > 300) {  // ~5000 propagations: recompute every few minutes
                 passes_ = orbit::passes(tle, now, 48, loc.lat, loc.lon);
                 passesAt_ = now;
             }
-            g.text("NEXT PASSES", x, y, 20, pal::GREEN);
+            g.text("NEXT PASSES", x, y, 28, pal::GREEN);
             int row = 0;
             for (const auto& ps : passes_) {
                 if (ps.set < now) continue;
-                snprintf(buf, sizeof buf, "%s  MAX %.0f\xC2\xB0", when(ps.rise).c_str(), ps.maxEl);
-                g.text(buf, x, y + 26 + row * 26, 20, ps.visible ? pal::YELLOW : pal::DIM_YELLOW);
-                if (ps.visible) g.text("VISIBLE", kW - 18, y + 26 + row * 26, 20, pal::GREEN, Align::Right);
+                snprintf(buf, sizeof buf, "%s %.0f\xC2\xB0", when(ps.rise).c_str(), ps.maxEl);
+                int ry = y + 38 + row * 38;
+                g.text(buf, x, ry, 30, ps.visible ? pal::YELLOW : pal::DIM_YELLOW);
+                if (ps.visible) g.text("SEE IT", kW - 18, ry, 26, pal::GREEN, Align::Right);
                 if (++row == 3) break;
             }
-            if (row == 0) g.text("NONE IN NEXT 48 HOURS", x, y + 26, 20, pal::DIM_YELLOW);
+            if (row == 0) g.text("NONE IN 48 HOURS", x, y + 38, 30, pal::DIM_YELLOW);
         }
         double age = orbit::tleAgeDays(tle, now);
-        snprintf(buf, sizeof buf, "ORBIT DATA %.1f DAYS OLD%s", age, age > 5 ? " - PREDICTIONS DEGRADED" : "");
-        g.text(buf, x, kH - 26, 16, age > 5 ? pal::RED : pal::DIM_YELLOW);
+        if (age > 5) g.text("ORBIT DATA OLD", kW - 18, kH - 34, 24, pal::RED, Align::Right);
     }
 
 private:

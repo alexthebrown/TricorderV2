@@ -36,6 +36,7 @@ struct Config {
     int overscanY = 0;
     float pixelAspect = 1.0f;  // 1.0667 for PAL composite on a 4:3 tube/panel
     bool lights = true;        // blinking indicator lights
+    bool boldText = false;     // heavier text for blurry composite screens (default: on for Pi)
     bool bootSequence = true;
 
     // Video

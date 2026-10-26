@@ -551,8 +551,8 @@ private:
             else g.fill({r.x + r.w / 2 - 3, r.y + r.h / 2 - 3, 6, 6}, pc);
         }
         for (int i = 0; i < 8; ++i) {
-            g.text(std::to_string(i + 1), kGX + i * kCell + kCell / 2, kGY + kCell * 8 + 2, 14, pal::DIM_GREEN, Align::Center);
-            g.text(std::to_string(i + 1), kGX + kCell * 8 + 6, kGY + i * kCell + 14, 14, pal::DIM_GREEN);
+            g.text(std::to_string(i + 1), kGX + i * kCell + kCell / 2, kGY + kCell * 8 + 2, 18, pal::DIM_YELLOW, Align::Center);
+            g.text(std::to_string(i + 1), kGX + kCell * 8 + 4, kGY + i * kCell + 12, 18, pal::DIM_YELLOW);
         }
     }
 
@@ -576,9 +576,9 @@ private:
     void drawStatus(Gfx& g) {
         int x = 396, y = 86, right = kW - 18;
         auto row = [&](const std::string& k, const std::string& v, Color vc = pal::YELLOW) {
-            g.text(k, x, y, 20, pal::GREEN);
-            g.text(v, right, y, 20, vc, Align::Right);
-            y += 25;
+            g.text(k, x, y, 24, pal::GREEN);
+            g.text(v, right, y, 24, vc, Align::Right);
+            y += 28;
         };
         char buf[32];
         snprintf(buf, sizeof buf, "%.1f", t_);
@@ -588,28 +588,29 @@ private:
         row("CONDITION", cond, cc);
         row("QUADRANT", quadrant(qr_, qc_));
         row("SECTOR", sector(sr_, sc_));
-        row("PHOTON TORPEDOES", std::to_string(torps_));
+        row("TORPEDOES", std::to_string(torps_));
         row("ENERGY", std::to_string(int(energy_)), energy_ < 300 ? pal::RED : pal::YELLOW);
         row("SHIELDS", std::to_string(int(shields_)), shields_ < 200 && !ks_.empty() ? pal::RED : pal::YELLOW);
-        row("KLINGONS LEFT", std::to_string(totalK_));
+        row("KLINGONS", std::to_string(totalK_));
         snprintf(buf, sizeof buf, "%.1f", t0_ + days_ - t_);
         row("DAYS LEFT", buf);
         int dmg = 0;
         for (double d : damage_) dmg += d > 0;
-        if (dmg) row("DAMAGED SYSTEMS", std::to_string(dmg), pal::RED);
+        if (dmg) row("DAMAGED", std::to_string(dmg), pal::RED);
     }
 
     void drawLog(Gfx& g) {
-        int y = 86 + 25 * 10 + 6;
+        int y = 86 + 28 * 10 + 6;
         g.fill({396, y - 4, kW - 18 - 396, 1}, pal::DIM_GREEN);
-        for (auto& line : log_) {
-            auto parts = g.wrap(line, 16, kW - 18 - 396);
-            for (auto& p : parts) {
-                if (y > 452) break;
-                g.text(p, 396, y, 16, p.find("***") != std::string::npos || p.find("DESTROYED") != std::string::npos
-                                          ? pal::RED : pal::YELLOW);
-                y += 19;
-            }
+        // Only the newest messages fit at a readable size: show the last few lines.
+        std::vector<std::string> lines;
+        for (auto& line : log_)
+            for (auto& p : g.wrap(line, 20, kW - 18 - 396)) lines.push_back(p);
+        size_t from = lines.size() > 3 ? lines.size() - 3 : 0;
+        for (size_t i = from; i < lines.size(); ++i, y += 24) {
+            const std::string& p = lines[i];
+            bool alarm = p.find("***") != std::string::npos || p.find("DESTROYED") != std::string::npos;
+            g.text(p, 396, y, 20, alarm ? pal::RED : pal::YELLOW);
         }
     }
 
@@ -617,28 +618,28 @@ private:
         SDL_Rect r{14, 466, kW - 28, 100};
         g.fill(r, pal::BLACK);
         g.outline(r, pal::YELLOW, 2);
-        g.text(title, r.x + 14, r.y + 8, 26, pal::GREEN);
-        g.text(value, r.x + r.w - 14, r.y + 6, 34, pal::YELLOW, Align::Right);
-        g.text(hint, r.x + 14, r.y + 64, 18, pal::DIM_YELLOW);
+        g.text(title, r.x + 14, r.y + 8, 32, pal::GREEN);
+        g.text(value, r.x + r.w - 14, r.y + 6, 36, pal::YELLOW, Align::Right);
+        g.text(hint, r.x + 14, r.y + 62, 24, pal::DIM_YELLOW);
     }
 
     void drawAimPanel(Gfx& g) {
         char buf[64];
         if (action_ == Action::Nav) {
-            snprintf(buf, sizeof buf, "COURSE %.2f  WARP %g", course_, warp_);
-            panel(g, "SET COURSE", buf, "LEFT/RIGHT: TURN   UP/DOWN: WARP   ENTER: ENGAGE   BACK: CANCEL");
+            snprintf(buf, sizeof buf, "%.2f  W%g", course_, warp_);
+            panel(g, "SET COURSE", buf, "< > TURN   ^ v WARP   OK: ENGAGE");
         } else {
-            snprintf(buf, sizeof buf, "COURSE %.2f", course_);
-            panel(g, "TORPEDO COURSE", buf, "LEFT/RIGHT: TURN   ENTER: FIRE   BACK: CANCEL");
+            snprintf(buf, sizeof buf, "%.2f", course_);
+            panel(g, "TORPEDO", buf, "< > TURN   OK: FIRE");
         }
     }
 
     void drawAmountPanel(Gfx& g) {
         std::string v = std::to_string(amount_) + " UNITS";
         if (action_ == Action::Phasers)
-            panel(g, "PHASERS: ENERGY TO FIRE", v, "UP/DOWN: 100   LEFT/RIGHT: 10   ENTER: FIRE   BACK: CANCEL");
+            panel(g, "PHASERS", v, "^ v 100   < > 10   OK: FIRE");
         else
-            panel(g, "SHIELD ENERGY", v, "UP/DOWN: 100   LEFT/RIGHT: 10   ENTER: SET   BACK: CANCEL");
+            panel(g, "SHIELDS", v, "^ v 100   < > 10   OK: SET");
     }
 
     std::string code(int r, int c) const {
@@ -657,8 +658,8 @@ private:
                 g.outline(r, dr == 0 && dc == 0 ? pal::YELLOW : pal::GREEN, 2);
                 g.textIn(r, in ? code(qr, qc) : "***", 30, in && gK_[qr][qc] ? pal::RED : pal::YELLOW);
             }
-        g.text("KLINGONS / BASES / STARS", area.x + area.w / 2, area.y + area.h - 30, 18, pal::DIM_YELLOW, Align::Center);
-        g.text("ANY BUTTON TO CLOSE", kW / 2, 520, 22, pal::DIM_YELLOW, Align::Center);
+        g.text("KLINGONS BASES STARS", area.x + area.w / 2, area.y + area.h - 34, 24, pal::DIM_YELLOW, Align::Center);
+        g.text("ANY BUTTON TO CLOSE", kW / 2, 516, 28, pal::DIM_YELLOW, Align::Center);
     }
 
     void drawGalaxyMap(Gfx& g) {
@@ -669,9 +670,9 @@ private:
                 SDL_Rect cell = cellRect(r, c);
                 g.outline(cell, Color{0x18, 0x30, 0x18});
                 if (r == qr_ && c == qc_) g.outline(cell, pal::YELLOW, 2);
-                if (known_[r][c]) g.textIn(cell, code(r, c), 16, gK_[r][c] ? pal::RED : pal::GREEN);
+                if (known_[r][c]) g.textIn(cell, code(r, c), 20, gK_[r][c] ? pal::RED : pal::GREEN);
             }
-        g.text("GALACTIC RECORD - ANY BUTTON TO CLOSE", kW / 2, 520, 22, pal::DIM_YELLOW, Align::Center);
+        g.text("GALAXY MAP - ANY BUTTON", kW / 2, 516, 28, pal::DIM_YELLOW, Align::Center);
     }
 
     // ------------------------------------------------------------------ state

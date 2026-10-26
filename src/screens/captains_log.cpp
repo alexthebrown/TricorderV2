@@ -13,10 +13,10 @@
 namespace {
 
 constexpr int kCols = 2;
-constexpr int kRows = 7;
-constexpr int kTop = 118;
-constexpr int kRowH = 60;
-constexpr int kBtnH = 50;
+constexpr int kRows = 6;
+constexpr int kTop = 120;
+constexpr int kRowH = 68;
+constexpr int kBtnH = 58;
 
 std::string upper(std::string s) {
     for (auto& c : s) c = char(std::toupper(static_cast<unsigned char>(c)));
@@ -108,12 +108,12 @@ public:
         Color subCol = app.library.usingFallback() || root.empty() ? pal::RED : pal::GREEN;
         if (app.library.usingFallback()) crumb += "  -  NETWORK DRIVE OFFLINE";
         // Keep the deepest part of a long path visible.
-        int px = 22;
+        int px = 28;
         if (g.textWidth(crumb, px) > kW - 80) {
             while (g.textWidth("..." + crumb, px) > kW - 80 && crumb.size() > 4) crumb.erase(0, 1);
             crumb = "..." + crumb;
         }
-        g.text(crumb, 18, 84, px, subCol);
+        g.text(crumb, 18, 80, px, subCol);
 
         if (waiting_) {
             g.text("ACCESSING LIBRARY" + std::string(int(app.time() * 3) % 4, '.'), kW / 2, 250, 36, pal::YELLOW,
@@ -124,8 +124,7 @@ public:
         if (items_.empty()) {
             std::string why = app.library.status();
             g.text(why.empty() ? "NO LOG ENTRIES FOUND" : why, kW / 2, 200, 34, pal::RED, Align::Center);
-            g.text(g.ellipsize("Searched: " + app.cfg.videoDir, 20, kW - 40), kW / 2, 256, 20, pal::YELLOW,
-                   Align::Center);
+            g.text(g.ellipsize(app.cfg.videoDir, 24, kW - 40), kW / 2, 256, 24, pal::YELLOW, Align::Center);
             if (app.cfg.videoDir.rfind("smb://", 0) == 0)
                 g.text("Open the share once in the Files app so it is mounted", kW / 2, 290, 20, pal::YELLOW,
                        Align::Center);
@@ -150,7 +149,7 @@ public:
         if (sel_ >= 0) {
             char pos[32];
             snprintf(pos, sizeof pos, "%d / %zu", sel_ + 1, items_.size());
-            g.text(pos, kW - 18, kTop + kRows * kRowH - 4, 18, pal::DIM_YELLOW, Align::Right);
+            g.text(pos, kW - 18, kTop + kRows * kRowH + 2, 24, pal::DIM_YELLOW, Align::Right);
         }
     }
 
@@ -165,16 +164,16 @@ private:
         std::string tag;
         if (isFolder) tag = m.videoCount >= 0 ? std::to_string(m.videoCount) + " >" : ">";
         else if (m.duration > 0) tag = formatClock(m.duration);
-        int tagW = tag.empty() ? 0 : g.textWidth(tag, 20) + 10;
-        std::string name = g.ellipsize(m.name, 28, r.w - 24 - tagW);
-        g.textIn({r.x + 12 + off, r.y + off, r.w - 24 - tagW, r.h}, name, 28, pal::BLACK, Align::Left);
+        int tagW = tag.empty() ? 0 : g.textWidth(tag, 24) + 10;
+        std::string name = g.ellipsize(m.name, 32, r.w - 24 - tagW);
+        g.textIn({r.x + 12 + off, r.y + off, r.w - 24 - tagW, r.h}, name, 32, pal::BLACK, Align::Left);
         if (!tag.empty())
-            g.textIn({r.x + off, r.y + off, r.w - 10, r.h}, tag, 20, isFolder ? pal::DIM_YELLOW : pal::DIM_GREEN,
+            g.textIn({r.x + off, r.y + off, r.w - 10, r.h}, tag, 24, pal::BLACK,
                      Align::Right);
         if (m.playable() && m.duration > 0) {
             double resume = app.library.resumePosition(m.playPath);
             if (resume > 0)
-                g.fill({r.x + 4, r.y + r.h - 7, int((r.w - 8) * std::min(1.0, resume / m.duration)), 3}, pal::BLACK);
+                g.fill({r.x + 4, r.y + r.h - 8, int((r.w - 8) * std::min(1.0, resume / m.duration)), 4}, pal::BLACK);
         }
     }
 

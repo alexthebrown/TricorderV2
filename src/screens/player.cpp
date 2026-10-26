@@ -134,11 +134,11 @@ public:
 
         // Title + decoder info
         g.fill({0, 0, kW, 44}, withAlpha(pal::BLACK, 170));
-        g.text(g.ellipsize(item_.name, 28, kW - 220), 14, 8, 28, pal::YELLOW);
+        g.text(g.ellipsize(item_.name, 30, kW - 240), 14, 6, 30, pal::YELLOW);
         std::string info = std::string(player_.hardware() ? "HW " : "SW ") + std::to_string(player_.width()) + "x" +
                            std::to_string(player_.height());
         if (player_.droppedFrames() > 0) info += "  -" + std::to_string(player_.droppedFrames());
-        g.text(info, kW - 14, 14, 18, player_.qualityLevel() > 0 ? pal::RED : pal::GREEN, Align::Right);
+        g.text(info, kW - 14, 12, 24, player_.qualityLevel() > 0 ? pal::RED : pal::GREEN, Align::Right);
 
         // Progress + controls
         g.fill({0, kH - 116, kW, 116}, withAlpha(pal::BLACK, 190));
@@ -147,8 +147,8 @@ public:
         g.outline(bar, pal::GREEN, 2);
         if (dur > 0) g.fill({bar.x + 2, bar.y + 2, int((bar.w - 4) * std::clamp(pos / dur, 0.0, 1.0)), bar.h - 4}, pal::YELLOW);
         std::string t = formatClock(pos) + " / " + (dur > 0 ? formatClock(dur) : "--:--");
-        g.text(t, kW - 18, kH - 88, 22, pal::YELLOW, Align::Right);
-        if (player_.paused()) g.text("PAUSED", 18, kH - 88, 22, pal::RED);
+        g.text(t, kW - 18, kH - 90, 28, pal::YELLOW, Align::Right);
+        if (player_.paused()) g.text("PAUSED", 18, kH - 90, 28, pal::RED);
         controls_.render(g);
     }
 
@@ -161,13 +161,14 @@ private:
 
     void buildControls() {
         controls_.clear();
-        auto r = layoutRow(app.gfx, {"<<", "Play", "Pause", ">>", "Stop"}, kH - 62, 50, 30, 14, kW - 14, 14,
-                           nullptr, 26);
-        controls_.add(r[0], "<<", 30, [this] { player_.seekRelative(-kSkipSecs); });
-        controls_.add(r[1], "Play", 30, [this] { player_.setPaused(false); });
-        controls_.add(r[2], "Pause", 30, [this] { player_.setPaused(true); });
-        controls_.add(r[3], ">>", 30, [this] { player_.seekRelative(kSkipSecs); });
-        controls_.add(r[4], "Stop", 30, [this] { stop(); });
+        int px;
+        auto r = layoutRow(app.gfx, {"<<", "Play", "Pause", ">>", "Stop"}, kH - 60, 50, 34, 14, kW - 14, 14,
+                           &px, 24);
+        controls_.add(r[0], "<<", px, [this] { player_.seekRelative(-kSkipSecs); });
+        controls_.add(r[1], "Play", px, [this] { player_.setPaused(false); });
+        controls_.add(r[2], "Pause", px, [this] { player_.setPaused(true); });
+        controls_.add(r[3], ">>", px, [this] { player_.seekRelative(kSkipSecs); });
+        controls_.add(r[4], "Stop", px, [this] { stop(); });
         controls_.setFocus(1);
     }
 

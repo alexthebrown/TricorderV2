@@ -24,6 +24,7 @@ int main(int argc, char** argv) {
     bool pi = isRaspberryPi();
     cfg.fullscreen = pi;
     cfg.gpio = pi;
+    cfg.boldText = pi;
     // On the desktop, read the captain's logs from the Plex share (mounted by GNOME Files).
     if (!pi) cfg.videoDir = "smb://mycloud-0147dd.local/itsgreen1701/Plex";
 

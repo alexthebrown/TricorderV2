@@ -143,25 +143,24 @@ weather.gov grid point in `weather_url` (currently 41.47°N 91.58°W). Set `lati
 **Testing:** `--script` drives the program automatically, for example
 `--script "1,R,E,2,shot:/tmp/log.bmp,quit"`. Set `TRICORDER_DEBUG=1` to see FFmpeg's log output.
 
-## Setting up the Pi Zero W
+## Setting up the Pi Zero W (boots straight into the tricorder, no desktop)
 
-1. Composite output with the KMS driver. In `/boot/firmware/config.txt`:
+1. Flash **Raspberry Pi OS Lite (32-bit)** with Raspberry Pi Imager: hostname `tricorder`,
+   user `tricorder`, your phone hotspot's Wi-Fi, SSH on.
+2. Composite screen, in `/boot/firmware/config.txt`:
    ```
    dtoverlay=vc4-kms-v3d,composite
    enable_tvout=1
-   gpu_mem=128
    ```
-   At the end of the line in `/boot/firmware/cmdline.txt`, add `video=Composite-1:720x576@50ie`.
-2. Clone to `/home/tricorder/Desktop/Tricorder/TricorderV2` and run `./startup.sh`. It
-   installs the dependencies the first time, pulls, rebuilds when the code changed, and starts
-   the program. Builds take a few minutes on a Zero.
-3. Optional: start it at boot without a desktop:
-   ```bash
-   sudo cp tools/tricorder.service /etc/systemd/system/
-   sudo systemctl daemon-reload && sudo systemctl enable --now tricorder
-   ```
-4. Optional: allow the **SHUT DOWN** button. Create `/etc/sudoers.d/tricorder` containing
+   At the end of the single line in `/boot/firmware/cmdline.txt`, add
+   `video=Composite-1:720x576@50ie vc4.tv_norm=PAL quiet loglevel=3 logo.nologo vt.global_cursor_default=0 consoleblank=0`.
+3. Install the build tools, clone to `/home/tricorder/Desktop/Tricorder/TricorderV2`, and run `./build.sh`.
+   Expect a long build on a Zero.
+4. Start at boot: `sudo cp tools/tricorder.service /etc/systemd/system/ && sudo systemctl enable tricorder`.
+   **EXIT PROGRAM** drops to a console login, and **SHUT DOWN** powers off.
+5. Allow the **SHUT DOWN** button: `/etc/sudoers.d/tricorder` containing
    `tricorder ALL=(root) NOPASSWD: /sbin/poweroff`.
+6. Logs: `journalctl -u tricorder -f`. To update: `git pull && ./build.sh && sudo systemctl restart tricorder`.
 
 Settings live in `~/.config/tricorder/tricorder.conf`. See
 [`tricorder.conf.example`](tricorder.conf.example). Buttons are BCM 17/18/27/22/23, wired

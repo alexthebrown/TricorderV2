@@ -32,15 +32,15 @@ void drawRedAlert(Gfx& g, const WeatherAlert& a, double t) {
         strftime(buf, sizeof buf, "UNTIL %-I:%M %p", &lt);
         when = buf;
     }
-    std::string sub = g.ellipsize(a.area, 22, kW - 60);
-    g.text(sub, kW / 2, 222, 22, pal::GREEN, Align::Center);
-    if (!when.empty()) g.text(when, kW / 2, 250, 26, pal::YELLOW, Align::Center);
+    std::string sub = g.ellipsize(a.area, 28, kW - 60);
+    g.text(sub, kW / 2, 220, 28, pal::GREEN, Align::Center);
+    if (!when.empty()) g.text(when, kW / 2, 254, 30, pal::YELLOW, Align::Center);
 
     std::string body = a.instruction.empty() ? a.headline : a.instruction;
     if (!a.description.empty()) body += "\n\n" + a.description;
     auto lines = g.wrap(body, 24, kW - 80);
-    int y = 296;
-    for (size_t i = 0; i < lines.size() && y < kH - 100; ++i, y += 30) g.text(lines[i], 40, y, 24, pal::YELLOW);
+    int y = 300;
+    for (size_t i = 0; i < lines.size() && y < kH - 110; ++i, y += 36) g.text(lines[i], 40, y, 30, pal::YELLOW);
 
     g.button({kW / 2 - 150, kH - 92, 300, 46}, "ACKNOWLEDGE", 30, true);
 }
@@ -105,10 +105,10 @@ void drawIdle(App& app, Gfx& g, double t) {
         g.text("TRANSMIT TO", qx + 125, 40, 34, pal::YELLOW, Align::Center);
         g.text("THE TRICORDER", qx + 125, 80, 34, pal::YELLOW, Align::Center);
         drawQr(g, url, qx + 10, 130, 230);
-        g.text("SCAN WITH YOUR PHONE", qx + 125, 372, 22, pal::GREEN, Align::Center);
+        g.text("SCAN WITH PHONE", qx + 125, 372, 30, pal::GREEN, Align::Center);
         if (!app.cfg.smsNumber.empty()) {
-            g.text("OR TEXT \"TRICORDER\" + MESSAGE", qx + 125, 410, 20, pal::GREEN, Align::Center);
-            g.text("TO " + app.cfg.smsNumber, qx + 125, 436, 24, pal::YELLOW, Align::Center);
+            g.text("OR TEXT", qx + 125, 412, 26, pal::GREEN, Align::Center);
+            g.text(app.cfg.smsNumber, qx + 125, 442, 30, pal::YELLOW, Align::Center);
         }
         drawLights(g, qx + 80, 480, 6, t, 12);
         return;
@@ -117,7 +117,7 @@ void drawIdle(App& app, Gfx& g, double t) {
     // Readouts on the right.
     int x = 420;
     g.text("TRICORDER", x, 40, 50, pal::YELLOW);
-    g.text("STANDBY SCAN" + std::string(int(t * 2) % 4, '.'), x, 100, 28, pal::GREEN);
+    g.text("STANDBY" + std::string(int(t * 2) % 4, '.'), x, 100, 32, pal::GREEN);
     time_t now = time(nullptr);
     tm lt;
     localtime_r(&now, &lt);
@@ -126,19 +126,19 @@ void drawIdle(App& app, Gfx& g, double t) {
     WeatherData w = app.weather.get();
     ProbeResult p = app.prober.get();
     std::vector<std::pair<std::string, std::string>> rows = {
-        {"STARDATE", stardateString(now)},
+        {"DATE", stardateString(now)},
         {"TIME", clock},
-        {"TEMPERATURE", w.valid ? std::to_string(w.temp) + "\xC2\xB0" "F" : "---"},
-        {"HUMIDITY", w.valid ? std::to_string(w.humidity) + "%" : "---"},
-        {"LIFE SIGNS", p.neighbours > 0 ? std::to_string(p.neighbours) : "---"},
-        {"SUBSPACE", std::to_string(p.nets.size()) + " SOURCES"},
+        {"TEMP", w.valid ? std::to_string(w.temp) + "\xC2\xB0" "F" : "---"},
+        {"HUMID", w.valid ? std::to_string(w.humidity) + "%" : "---"},
+        {"LIFE", p.neighbours > 0 ? std::to_string(p.neighbours) : "---"},
+        {"SIGNALS", std::to_string(p.nets.size())},
     };
-    int y = 160;
+    int y = 150;
     for (auto& r : rows) {
-        g.text(r.first, x, y, 22, pal::GREEN);
-        g.text(r.second, kW - 24, y, 22, pal::YELLOW, Align::Right);
-        y += 40;
+        g.text(r.first, x, y, 30, pal::GREEN);
+        g.text(r.second, kW - 24, y, 30, pal::YELLOW, Align::Right);
+        y += 46;
     }
-    drawLights(g, x, y + 10, 8, t, 14);
-    g.text("PRESS ANY BUTTON", kW / 2, kH - 40, 22, pal::DIM_YELLOW, Align::Center);
+    drawLights(g, x, y + 4, 8, t, 14);
+    g.text("PRESS ANY BUTTON", kW / 2, kH - 44, 28, pal::DIM_YELLOW, Align::Center);
 }

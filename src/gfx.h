@@ -24,7 +24,9 @@ constexpr Color BLACK{0, 0, 0};
 constexpr Color RED{0xE8, 0x4A, 0x2E};
 constexpr Color BLUE{0x5C, 0xA8, 0xE8};
 constexpr Color DIM_GREEN{0x2C, 0x55, 0x22};
-constexpr Color DIM_YELLOW{0x5A, 0x58, 0x30};
+// Secondary text. Kept fairly bright: the tricorder's little LCD lifts black to a mid blue,
+// and anything darker than this disappears into it.
+constexpr Color DIM_YELLOW{0xB2, 0xAF, 0x62};
 constexpr Color WHITE{0xFF, 0xFF, 0xFF};
 }  // namespace pal
 
@@ -47,6 +49,7 @@ public:
     const std::string& fontPath() const { return fontPath_; }
 
     void setOverscan(int x, int y) { osX_ = x; osY_ = y; }
+    void setBold(bool on) { bold_ = on; }  // heavier strokes for blurry composite screens
     void toggleFullscreen();
     bool screenshot(const std::string& path);  // BMP of the last rendered frame
 
@@ -99,6 +102,7 @@ private:
     bool vsync_ = false;
     bool fullscreen_ = false;
     int osX_ = 0, osY_ = 0;
+    bool bold_ = false;
     // Current transform logical -> physical
     float ox_ = 0, oy_ = 0, sx_ = 1, sy_ = 1;
 

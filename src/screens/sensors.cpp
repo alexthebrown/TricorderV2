@@ -133,17 +133,17 @@ private:
 
     void line(Gfx& g, SDL_Rect panel, int& y, const std::string& label, const std::string& value,
               Color vc = pal::YELLOW) {
-        g.text(label, panel.x, y, 22, pal::GREEN);
-        g.text(value, panel.x + panel.w, y, 22, vc, Align::Right);
-        y += 32;
+        g.text(label, panel.x, y, 28, pal::GREEN);
+        g.text(value, panel.x + panel.w, y, 28, vc, Align::Right);
+        y += 42;
     }
 
     void barRow(Gfx& g, SDL_Rect r, int& y, const std::string& label, float v, Color c) {
-        g.text(label, r.x + 10, y, 20, pal::GREEN);
-        SDL_Rect b{r.x + 150, y + 4, r.w - 160, 14};
+        g.text(label, r.x + 10, y, 26, pal::GREEN);
+        SDL_Rect b{r.x + 150, y + 6, r.w - 160, 18};
         g.fill(b, pal::DIM_GREEN);
         g.fill({b.x, b.y, int(b.w * std::clamp(v, 0.f, 1.f)), b.h}, c);
-        y += 28;
+        y += 36;
     }
 
     void renderGeo(Gfx& g, SDL_Rect panel, SDL_Rect extra) {
@@ -152,27 +152,25 @@ private:
         float dil = r.next();
         int y = panel.y;
         char buf[64];
-        g.text("GEOLOGICAL SURVEY", panel.x, y, 30, pal::YELLOW);
-        y += 46;
+        g.text("GEOLOGICAL", panel.x, y, 36, pal::YELLOW);
+        y += 50;
         snprintf(buf, sizeof buf, "%.2f g/cc", 2.4 + r.next() * 3.2);
         line(g, panel, y, "DENSITY", buf);
         snprintf(buf, sizeof buf, "%.0f m", 20 + r.next() * 400);
-        line(g, panel, y, "BEDROCK DEPTH", buf);
+        line(g, panel, y, "BEDROCK", buf);
         bool quake = r.next() > 0.8;
-        line(g, panel, y, "SEISMIC ACTIVITY", quake ? "ELEVATED" : "LOW", quake ? pal::RED : pal::YELLOW);
+        line(g, panel, y, "SEISMIC", quake ? "HIGH" : "LOW", quake ? pal::RED : pal::YELLOW);
         snprintf(buf, sizeof buf, "%.0f K", 280 + r.next() * 40);
-        line(g, panel, y, "CRUST TEMP", buf);
+        line(g, panel, y, "CRUST", buf);
         line(g, panel, y, "DILITHIUM", dil > 0.85 ? "DETECTED!" : "TRACE", dil > 0.85 ? pal::RED : pal::YELLOW);
-        line(g, panel, y, "TOPALINE", r.next() > 0.5 ? "TRACE" : "NONE");
-
+        
         g.outline(extra, pal::YELLOW, 2);
         int ey = extra.y + 10;
         barRow(g, extra, ey, "SILICATES", si, pal::YELLOW);
         barRow(g, extra, ey, "IRON", fe, pal::RED);
         barRow(g, extra, ey, "CARBON", c, pal::GREEN);
         barRow(g, extra, ey, "DILITHIUM", dil * 0.15f, pal::BLUE);
-        barRow(g, extra, ey, "OTHER", 1 - si - fe - c, mix(pal::YELLOW, pal::BLACK, 0.4f));
-    }
+            }
 
     void renderBio(Gfx& g, SDL_Rect panel, SDL_Rect extra) {
         ProbeResult p = app.prober.get();
@@ -180,29 +178,26 @@ private:
         Rng r(scanCount_);
         int y = panel.y;
         char buf[64];
-        g.text("BIOLOGICAL SCAN", panel.x, y, 30, pal::YELLOW);
-        y += 46;
+        g.text("BIOLOGICAL", panel.x, y, 36, pal::YELLOW);
+        y += 50;
         line(g, panel, y, "LIFE SIGNS", std::to_string(life), life > 1 ? pal::YELLOW : pal::GREEN);
-        line(g, panel, y, "CLASSIFICATION", "HUMANOID");
-        line(g, panel, y, "BIOCHEMISTRY", "CARBON-BASED");
+        line(g, panel, y, "TYPE", "HUMANOID");
+        line(g, panel, y, "BASIS", "CARBON");
         int bpm = 62 + int(r.next() * 20) + int(3 * std::sin(t_ * 0.5));
-        line(g, panel, y, "HEART RATE", std::to_string(bpm) + " BPM");
+        line(g, panel, y, "PULSE", std::to_string(bpm) + " BPM");
         snprintf(buf, sizeof buf, "%.1f\xC2\xB0" "C", 36.6 + r.next() * 0.8);
-        line(g, panel, y, "BODY TEMP", buf);
-        line(g, panel, y, "CONDITION", "NOMINAL");
-
+        line(g, panel, y, "TEMP", buf);
+        
         g.outline(extra, pal::YELLOW, 2);
-        g.text("LIFE FORMS IN RANGE", extra.x + 10, extra.y + 8, 20, pal::GREEN);
-        int n = std::min(life, 24);
+        g.text("LIFE FORMS IN RANGE", extra.x + 10, extra.y + 8, 26, pal::GREEN);
+        int n = std::min(life, 22);
         for (int i = 0; i < n; ++i) {
-            int cx = extra.x + 22 + (i % 12) * 26, cy = extra.y + 50 + (i / 12) * 40;
+            int cx = extra.x + 24 + (i % 11) * 28, cy = extra.y + 64 + (i / 11) * 44;
             bool blink = std::sin(t_ * 3 + i) > 0;
             Color c = i == 0 ? pal::YELLOW : pal::GREEN;
             g.fill({cx - 5, cy - 14, 10, 10}, blink ? c : mix(c, pal::BLACK, 0.4f));   // head
             g.fill({cx - 7, cy - 2, 14, 18}, blink ? c : mix(c, pal::BLACK, 0.4f));    // body
         }
-        g.text(p.neighbours < 0 ? "SCANNING LOCAL NETWORK..." : "SOURCE: LOCAL NETWORK", extra.x + 10,
-               extra.y + extra.h - 28, 18, pal::DIM_YELLOW);
     }
 
     void renderAtmos(Gfx& g, SDL_Rect panel, SDL_Rect extra) {
@@ -210,42 +205,40 @@ private:
         Rng r(scanCount_);
         int y = panel.y;
         char buf[64];
-        g.text("ATMOSPHERIC SCAN", panel.x, y, 30, pal::YELLOW);
-        y += 46;
-        line(g, panel, y, "TEMPERATURE", w.valid ? std::to_string(w.temp) + "\xC2\xB0" "F" : "---");
+        g.text("ATMOSPHERE", panel.x, y, 36, pal::YELLOW);
+        y += 50;
+        line(g, panel, y, "TEMP", w.valid ? std::to_string(w.temp) + "\xC2\xB0" "F" : "---");
         line(g, panel, y, "HUMIDITY", w.valid ? std::to_string(w.humidity) + "%" : "---");
-        line(g, panel, y, "PRECIPITATION", w.valid ? std::to_string(w.precip) + "%" : "---");
+        line(g, panel, y, "PRECIP", w.valid ? std::to_string(w.precip) + "%" : "---");
         snprintf(buf, sizeof buf, "%.0f mb", 1002 + r.next() * 22);
         line(g, panel, y, "PRESSURE", buf);
         line(g, panel, y, "WIND", w.wind.empty() ? "CALM" : w.wind);
-        line(g, panel, y, "BREATHABLE", "YES", pal::GREEN);
-
+        
         g.outline(extra, pal::YELLOW, 2);
         int ey = extra.y + 10;
         barRow(g, extra, ey, "NITROGEN", 0.78f, pal::BLUE);
         barRow(g, extra, ey, "OXYGEN", 0.21f, pal::GREEN);
         barRow(g, extra, ey, "ARGON", 0.0093f + 0.02f, pal::YELLOW);
         barRow(g, extra, ey, "CO2", 0.0004f + 0.01f, pal::RED);
-        barRow(g, extra, ey, "H2O VAPOR", w.valid ? w.humidity / 100.f * 0.04f + 0.01f : 0.02f, pal::BLUE);
-    }
+            }
 
     void renderSubspace(Gfx& g, SDL_Rect panel, SDL_Rect extra, SDL_Rect scope) {
         ProbeResult p = app.prober.get();
         int y = panel.y;
-        g.text("SUBSPACE SIGNALS", panel.x, y, 30, pal::YELLOW);
-        y += 46;
+        g.text("SIGNALS", panel.x, y, 36, pal::YELLOW);
+        y += 50;
         if (p.generation == 0) {
-            g.text("LISTENING" + std::string(int(t_ * 3) % 4, '.'), panel.x, y, 24, pal::GREEN);
+            g.text("LISTENING" + std::string(int(t_ * 3) % 4, '.'), panel.x, y, 28, pal::GREEN);
         }
-        for (size_t i = 0; i < p.nets.size() && i < 9; ++i) {
+        for (size_t i = 0; i < p.nets.size() && i < 7; ++i) {
             const WifiNet& n = p.nets[i];
             Color c = n.inUse ? pal::YELLOW : pal::GREEN;
-            std::string name = g.ellipsize(n.ssid, 20, panel.w - 70);
-            g.text(name, panel.x, y, 20, c);
-            SDL_Rect b{panel.x + panel.w - 60, y + 4, 60, 12};
+            std::string name = g.ellipsize(n.ssid, 28, panel.w - 76);
+            g.text(name, panel.x, y, 28, c);
+            SDL_Rect b{panel.x + panel.w - 64, y + 8, 64, 16};
             g.fill(b, pal::DIM_GREEN);
             g.fill({b.x, b.y, b.w * n.signal / 100, b.h}, n.signal > 60 ? pal::GREEN : n.signal > 30 ? pal::YELLOW : pal::RED);
-            y += 30;
+            y += 40;
         }
         // Channel spectrum over the scope trace.
         for (const WifiNet& n : p.nets) {
@@ -259,19 +252,18 @@ private:
         g.outline(extra, pal::YELLOW, 2);
         int ey = extra.y + 10;
         char buf[64];
-        snprintf(buf, sizeof buf, "SOURCES DETECTED: %zu", p.nets.size());
-        g.text(buf, extra.x + 10, ey, 20, pal::YELLOW);
-        ey += 30;
+        snprintf(buf, sizeof buf, "SOURCES: %zu", p.nets.size());
+        g.text(buf, extra.x + 10, ey, 28, pal::YELLOW);
+        ey += 40;
         if (!p.ssid.empty()) {
-            g.text("LOCKED: " + g.ellipsize(p.ssid, 20, extra.w - 110), extra.x + 10, ey, 20, pal::GREEN);
-            ey += 30;
+            g.text("LOCK " + g.ellipsize(p.ssid, 28, extra.w - 90), extra.x + 10, ey, 28, pal::GREEN);
+            ey += 40;
         }
         int secure = 0;
         for (auto& n : p.nets) secure += n.secure;
         snprintf(buf, sizeof buf, "ENCRYPTED: %d", secure);
-        g.text(buf, extra.x + 10, ey, 20, pal::GREEN);
-        g.text(p.wifiReal ? "SOURCE: WIRELESS RECEIVER" : "SIMULATED - NO RECEIVER", extra.x + 10,
-               extra.y + extra.h - 28, 18, p.wifiReal ? pal::DIM_YELLOW : pal::RED);
+        g.text(buf, extra.x + 10, ey, 28, pal::GREEN);
+        if (!p.wifiReal) g.text("SIMULATED", extra.x + extra.w - 10, extra.y + 8, 24, pal::RED, Align::Right);
     }
 
     ButtonGroup buttons_;
