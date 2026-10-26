@@ -1,0 +1,68 @@
+<!doctype html>
+<!-- Visitor page for the tricorder's message relay. Host it free with GitHub Pages
+     (Settings > Pages > Deploy from branch: main, folder /docs). The tricorder's QR code
+     opens it as .../subspace/#<topic>; messages go to that topic on ntfy.sh. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tricorder Subspace Link</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--g:#86DF64;--y:#DAD778;--r:#E84A2E}
+body{background:#000;color:var(--y);font-family:Antonio,"Arial Narrow",sans-serif;margin:0 auto;padding:18px;max-width:520px;letter-spacing:.5px}
+h1{font-size:44px;margin:0;line-height:1}.sub{color:var(--g);font-size:17px;margin-bottom:18px}
+h2{color:var(--g);font-size:22px;margin:20px 0 8px}
+input,textarea{width:100%;box-sizing:border-box;background:#111;color:var(--y);border:2px solid var(--g);font:inherit;font-size:20px;padding:10px;margin:5px 0}
+button{background:var(--g);color:#000;border:3px outset #c3efb1;font:inherit;font-weight:700;font-size:24px;padding:10px 22px;margin-top:6px;width:100%}
+button:active{border-style:inset}button:disabled{opacity:.5}
+#status{min-height:1.4em;font-size:20px;margin-top:12px}.ok{color:var(--g)}.err{color:var(--r)}
+.lights{display:flex;gap:8px;margin:14px 0}.lights i{width:14px;height:14px;display:block;animation:b 1.3s infinite}
+.lights i:nth-child(1){background:var(--r)}.lights i:nth-child(2){background:var(--g);animation-delay:.4s}
+.lights i:nth-child(3){background:var(--y);animation-delay:.2s}.lights i:nth-child(4){background:#5CA8E8;animation-delay:.7s}
+@keyframes b{50%{opacity:.2}}
+small{color:#888;font-size:15px;display:block;margin-top:22px;line-height:1.4}
+</style></head><body>
+<h1>TRICORDER</h1><div class="sub">SUBSPACE LINK &middot; USS ENTERPRISE NCC-1701</div>
+<div class="lights"><i></i><i></i><i></i><i></i></div>
+<div id="freqbox" style="display:none"><h2>SUBSPACE FREQUENCY</h2>
+<input id="freq" placeholder="tricorder-... (from the tricorder's QR code)" autocapitalize="off"></div>
+<h2>YOUR NAME OR VESSEL</h2>
+<input id="from" maxlength="40" placeholder="e.g. Lt. Commander Data" autocomplete="nickname">
+<h2>TRANSMISSION</h2>
+<textarea id="text" rows="4" maxlength="300" placeholder="Your message to the tricorder"></textarea>
+<button id="send" onclick="send()">TRANSMIT</button>
+<div id="status"></div>
+<small>Messages appear on the tricorder's screen once the captain clears them. Keep it friendly &mdash; this is a family-friendly starship.</small>
+<script>
+const $=id=>document.getElementById(id);
+let topic=decodeURIComponent(location.hash.slice(1));
+let server=new URLSearchParams(location.search).get('s')||'https://ntfy.sh';
+const valid=t=>/^[\w-]{6,64}$/.test(t);
+$('from').value=localStorage.from||'';
+function say(t,c){$('status').textContent=t;$('status').className=c}
+// Served by the tricorder itself (http://<tricorder>:1701/visitor) there's no #topic:
+// ask it, and ask again before each send in case the frequency was changed.
+const local=!valid(topic)&&location.protocol.startsWith('http');
+async function askTricorder(){
+  if(!local) return;
+  try{const r=await fetch('/api/relay',{cache:'no-store'});if(r.ok){const j=await r.json();topic=j.topic;server=j.server}}catch(e){}
+}
+(async()=>{
+  await askTricorder();
+  if(!valid(topic)){$('freqbox').style.display='';say('ENTER THE SUBSPACE FREQUENCY, OR SCAN THE CODE ON THE TRICORDER','err')}
+})();
+async function send(){
+  const text=$('text').value.trim(), from=$('from').value.trim()||'Visitor';
+  await askTricorder();
+  if(!valid(topic)) topic=$('freq').value.trim();
+  if(!valid(topic)) return say('NO SUBSPACE FREQUENCY','err');
+  if(!text) return say('ENTER A MESSAGE FIRST','err');
+  localStorage.from=$('from').value;$('send').disabled=true;say('TRANSMITTING...','ok');
+  try{
+    // A plain text POST with the title as a query parameter needs no CORS preflight.
+    const r=await fetch(server+'/'+encodeURIComponent(topic)+'?title='+encodeURIComponent(from),{method:'POST',body:text});
+    if(!r.ok) throw new Error(r.status==429?'TOO MANY TRANSMISSIONS - WAIT A MOMENT':'ERROR '+r.status);
+    $('text').value='';say('TRANSMISSION SENT. AWAITING CLEARANCE FROM THE CAPTAIN.','ok');
+  }catch(e){say('TRANSMISSION FAILED: '+(e.message||'NO SIGNAL'),'err')}
+  setTimeout(()=>{$('send').disabled=false},8000);  // one message every few seconds per phone
+}
+</script></body></html>

@@ -1,0 +1,5 @@
+build/
+sample_data/
+tricorder.conf
+assets/fonts/*.ttf
+assets/fonts/*.otf

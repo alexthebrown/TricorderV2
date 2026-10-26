@@ -1,0 +1,61 @@
+# Copy to ~/.config/tricorder/tricorder.conf (or ./tricorder.conf) and edit.
+# Anything left out keeps its default. Command-line flags override this file.
+
+username = Scott Thunder
+# A local folder, or smb://host/share/path (desktop: read through the Files app's mount).
+# Default: the Pi's local folder below; on a desktop smb://mycloud-0147dd.local/itsgreen1701/Plex
+video_dir = /home/tricorder/networkdrive/Videos
+hidden_folders = Shared Music,Shared Photos
+# font = /home/tricorder/.local/share/fonts/TOS_Title.ttf
+
+# weather.gov hourly forecast for your grid point (default: Quad Cities, DVN 33,63).
+# Find yours at https://api.weather.gov/points/LAT,LON -> properties.forecastHourly
+weather_url = https://api.weather.gov/gridpoints/DVN/33,63/forecast/hourly
+weather_refresh_min = 10
+offline = false
+# Your location for the sky chart, ISS passes and weather alerts (0 = use the weather grid point).
+latitude = 0
+longitude = 0
+
+# Standby scan after this many idle minutes (0 = never).
+idle_minutes = 5
+# Phone web page ("subspace link"). 0 disables it; set a PIN to restrict it.
+web_port = 1701
+web_pin =
+# Where uploaded logs go (empty = "<library>/Captain's Logs").
+upload_dir =
+
+# Visitor relay for conventions (see README). Messages wait for approval when moderate = true.
+relay = false
+relay_server = https://ntfy.sh
+relay_topic =
+relay_page =
+sms_number =
+moderate = true
+profanity_filter = true
+
+# Display. fullscreen and gpio default to true on a Raspberry Pi, false elsewhere.
+# fullscreen = true
+window_scale = 1.0
+overscan_x = 0
+overscan_y = 0
+# 1.0667 corrects video geometry for 720x576 PAL shown on a 4:3 screen.
+pixel_aspect = 1.0
+lights = true
+boot_sequence = true
+
+# Video
+hw_decode = auto
+video_fill = false
+audio = true
+
+# Buttons (BCM pin numbers; wired to ground, internal pull-ups)
+# gpio = true
+gpio_chip = /dev/gpiochip0
+pin_up = 17
+pin_down = 18
+pin_left = 27
+pin_right = 22
+pin_enter = 23
+
+shutdown_cmd = sudo -n /sbin/poweroff

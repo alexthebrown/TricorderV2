@@ -1,0 +1,126 @@
+# Ship's Database for the tricorder's Library Computer.
+# [CATEGORY] starts a section, "== TITLE" starts an entry, everything else is the entry text.
+# Blank lines separate paragraphs. Add your own entries freely; the file is read at startup.
+# Entries in ~/.config/tricorder/library.txt are added too.
+
+[CREW]
+== JAMES T. KIRK
+Commanding officer of the USS Enterprise during its historic five-year mission. Born in Riverside, Iowa, Kirk is known for bold, unorthodox tactics and a refusal to accept no-win scenarios.
+
+He frequently leads landing parties personally, which his officers regard as both admirable and reckless.
+
+== SPOCK
+Science officer and first officer of the Enterprise. Son of the Vulcan ambassador Sarek and the human teacher Amanda Grayson, Spock lives by Vulcan discipline and logic while privately wrestling with his human half.
+
+Spock is rarely seen on a planet without a tricorder, and his scans have resolved many crises.
+
+== LEONARD MCCOY
+Chief medical officer, nicknamed "Bones". A country doctor from Georgia at heart, McCoy distrusts machines (the transporter in particular) and serves as the ship's conscience, often arguing with Spock.
+
+His medical tricorder and hypospray are rarely far from hand.
+
+== MONTGOMERY SCOTT
+Chief engineer. Scott knows the Enterprise's engines better than anyone and routinely coaxes more out of them than their designers thought possible. Off duty he enjoys technical journals and a good drink.
+
+== NYOTA UHURA
+Communications officer. Uhura is fluent in many languages and an expert in subspace communications; she is the first to hear hails, distress calls and enemy chatter.
+
+== HIKARU SULU
+Helmsman of the Enterprise. Sulu is an accomplished pilot and a man of many hobbies, from botany to fencing.
+
+== PAVEL CHEKOV
+Navigator, joining the bridge crew in the ship's second year. Young, enthusiastic and proudly Russian, he is quick to credit his homeland with almost any invention.
+
+[STARSHIPS]
+== USS ENTERPRISE NCC-1701
+A Constitution-class heavy cruiser of Starfleet, with a crew of about 430. Its mission: to explore strange new worlds, seek out new life and new civilizations, and boldly go where no man has gone before.
+
+Primary systems: warp drive powered by matter/antimatter reaction regulated by dilithium crystals, phaser banks, photon torpedoes, deflector shields and transporters.
+
+== KLINGON D7 BATTLE CRUISER
+The standard Klingon warship of the era: a bulbous command pod on a long neck, with wing-mounted warp nacelles. Fast and heavily armed, D7s often shadow Federation ships along the border.
+
+== ROMULAN BIRD-OF-PREY
+First encountered near the Romulan Neutral Zone. Slower than a starship, but armed with a devastating plasma weapon and, most alarmingly, a cloaking device that renders it invisible.
+
+== SHUTTLECRAFT GALILEO
+One of the Enterprise's shuttlecraft, used for short-range survey missions. Its crash on Taurus II forced Spock to make an uncharacteristically emotional decision to save his crew.
+
+[SPECIES]
+== VULCANS
+Natives of the planet Vulcan who long ago turned from violent emotion to a philosophy of strict logic. Vulcans are physically strong, long-lived, and have copper-based green blood.
+
+Notable abilities include the mind meld and the nerve pinch.
+
+== KLINGONS
+A warrior people whose expanding empire is the Federation's chief rival. Klingons prize strength and cunning; open war is usually held in check only by treaty.
+
+== ROMULANS
+A secretive offshoot of the Vulcan people, separated from the Federation by the Neutral Zone. For a century no human had seen a Romulan face, until the Enterprise's encounter at the Neutral Zone outposts.
+
+== TRIBBLES
+Small, purring balls of fur that are born pregnant and reproduce at an alarming rate when well fed. Tribbles are soothing to humans and greatly dislike Klingons, a trait that once exposed a Klingon spy.
+
+== HORTA
+A silicon-based life form that moves through solid rock. The Horta of Janus VI was killing miners only to protect her eggs; once Spock mind-melded with her, peaceful cooperation followed.
+
+== GORN
+A powerful reptilian species. Kirk was forced into single combat with a Gorn captain by the Metrons, and won by improvising a crude cannon from minerals he found on the arena planet.
+
+[TECHNOLOGY]
+== TRICORDER
+A portable sensing, computing and recording device carried on a shoulder strap. Standard tricorders scan geological, meteorological and biological readings; medical tricorders add a detachable scanner for diagnosis.
+
+The unit you are holding is one of these.
+
+== PHASER
+The standard Starfleet sidearm, firing an energy beam with settings from stun to disintegration. A small hand phaser can clip into a larger pistol body for extra power.
+
+== COMMUNICATOR
+A flip-open handheld radio that connects landing parties to the ship. The transporter room locks onto communicator signals to beam crew members up.
+
+== TRANSPORTER
+Converts a person or object into an energy pattern, beams it to a destination and reassembles it. Ion storms and equipment faults have produced some memorable malfunctions.
+
+== WARP DRIVE
+Faster-than-light propulsion. The matter/antimatter reaction in the engine core is regulated by dilithium crystals; warp factor 6 is a typical cruising speed and warp 8 a dangerous emergency maximum.
+
+== DILITHIUM
+A rare crystal essential to controlling the matter/antimatter reaction. Dilithium-rich worlds are of great strategic value, and a cracked crystal can leave a starship stranded.
+
+[MISSION LOGS]
+== THE MAN TRAP
+STARDATE 1513.1. On planet M-113 the crew discovers the last survivor of a native species: a shapeshifter that must consume salt from living bodies to survive.
+
+== THE CORBOMITE MANEUVER
+STARDATE 1512.2. A vast alien vessel threatens to destroy the Enterprise. Kirk bluffs with a nonexistent "corbomite" device that will destroy any attacker.
+
+== WHERE NO MAN HAS GONE BEFORE
+STARDATE 1312.4. Passing through the energy barrier at the galaxy's edge gives helmsman Gary Mitchell god-like psychic powers, and a growing contempt for his crewmates.
+
+== BALANCE OF TERROR
+STARDATE 1709.1. A cloaked Romulan ship destroys Federation outposts along the Neutral Zone. Kirk and the Romulan commander engage in a tense duel of wits.
+
+== THE CITY ON THE EDGE OF FOREVER
+STARDATE 3134.0. A delirious McCoy leaps through a time portal into 1930s New York and changes history. Kirk and Spock follow to set things right, at great personal cost.
+
+== ARENA
+STARDATE 3045.6. After a Gorn attack on Cestus III, the powerful Metrons transport Kirk and the Gorn captain to a barren planet to settle matters in single combat.
+
+== SPACE SEED
+STARDATE 3141.9. The Enterprise finds the sleeper ship Botany Bay, carrying genetically engineered tyrant Khan Noonien Singh and his followers.
+
+== THE DEVIL IN THE DARK
+STARDATE 3196.1. Miners on Janus VI are being killed by a creature that moves through rock. Spock's mind meld reveals the truth behind the attacks.
+
+== ERRAND OF MERCY
+STARDATE 3198.4. War with the Klingons erupts over the strategically placed planet Organia, whose seemingly primitive inhabitants have surprises of their own.
+
+== AMOK TIME
+STARDATE 3372.7. Spock must return to Vulcan to marry or die, and Kirk finds himself in a ritual fight to the death against his friend.
+
+== THE DOOMSDAY MACHINE
+STARDATE 4202.9. A planet-destroying machine of unknown origin has wrecked the USS Constellation. Its commodore is determined to stop it at any cost.
+
+== THE TROUBLE WITH TRIBBLES
+STARDATE 4523.3. A shipment of grain at Space Station K-7 must be protected from the Klingons, but the real threat turns out to be small, furry and multiplying.
