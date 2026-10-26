@@ -42,7 +42,7 @@ public:
     void addMessage(const std::string& from, const std::string& text, bool moderated = false,
                     const std::string& source = "web");
     void setProfanityFilter(bool on) { filter_ = on; }
-    // Lets /visitor (the themed visitor page, served locally for testing) find the relay.
+    // Lets /tricorder (the visitor page, also served locally for testing) find the relay.
     void setRelayInfo(std::function<std::pair<std::string, std::string>()> serverAndTopic) {
         std::lock_guard<std::mutex> lk(m_);
         relayInfo_ = std::move(serverAndTopic);

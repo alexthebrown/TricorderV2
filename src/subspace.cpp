@@ -345,17 +345,17 @@ void SubspaceServer::handle(int fd) {
 
     if (method == "GET" && path == "/") {
         respond(fd, 200, "text/html; charset=utf-8", kPage);
-    } else if (method == "GET" && (path == "/visitor" || path == "/visitor/")) {
-        // The same page that GitHub Pages hosts for visitors (docs/subspace/index.html).
-        for (const std::string& p : {exeDir() + "/../docs/subspace/index.html", exeDir() + "/docs/subspace/index.html",
-                                     std::string("docs/subspace/index.html")}) {
+    } else if (method == "GET" && (path == "/tricorder" || path == "/tricorder/")) {
+        // The same visitor page GitHub Pages hosts (docs/tricorder/index.html).
+        for (const std::string& p : {exeDir() + "/../docs/tricorder/index.html", exeDir() + "/docs/tricorder/index.html",
+                                     std::string("docs/tricorder/index.html")}) {
             std::ifstream in(p);
             if (!in) continue;
             std::stringstream ss;
             ss << in.rdbuf();
             return respond(fd, 200, "text/html; charset=utf-8", ss.str());
         }
-        respond(fd, 404, "text/plain", "visitor page not found (docs/subspace/index.html)");
+        respond(fd, 404, "text/plain", "visitor page not found (docs/tricorder/index.html)");
     } else if (method == "GET" && path == "/api/relay") {
         std::function<std::pair<std::string, std::string>()> info;
         {

@@ -23,7 +23,8 @@ struct Config {
     bool relay = false;
     std::string relayServer = "https://ntfy.sh";
     std::string relayTopic;   // "" = a random private topic, generated once and kept
-    std::string relayPage;    // themed page visitors open (topic appended as #topic); "" = ntfy's web app
+    // Visitor page the QR code opens (topic appended as #topic); "" = ntfy's own web app.
+    std::string relayPage = "https://alexthebrown.github.io/TricorderV2/tricorder/";  // GitHub Pages
     std::string smsNumber;    // shown on screen if texts are forwarded to the relay
     bool moderate = true;     // relay messages wait for your approval
     bool profanityFilter = true;

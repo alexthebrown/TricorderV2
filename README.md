@@ -59,14 +59,13 @@ join. Instead, turn on **VISITOR RELAY** (INPUT page, `relay = true`, or `--rela
 - **RELAY FREQUENCY → CHANGE** (press twice) on the INPUT page picks a fresh topic, for example at the start of
   each event, so old QR codes stop working.
 
-**Use the themed visitor page.** Without it, the QR code opens ntfy's own web app, which
-shows visitors *everyone's* raw messages. The themed page in
-[`docs/subspace/`](docs/subspace/index.html) only sends. To host it free with GitHub Pages:
-repository **Settings → Pages → Deploy from a branch → `main` / `/docs`**, then set
-
-```
-relay_page = https://alexthebrown.github.io/TricorderV2/subspace/
-```
+**The visitor page** is hosted free on GitHub Pages at
+**https://alexthebrown.github.io/TricorderV2/tricorder/**, and the QR code opens it with your topic attached
+(`…/tricorder/#tricorder-…`). The file is [`docs/tricorder/index.html`](docs/tricorder/index.html).
+To switch Pages on: push the repo, then go to **Settings → Pages → Deploy from a branch → `main` / `/docs`**.
+It only sends messages, unlike ntfy's own web app (used if `relay_page` is empty), which shows
+visitors *everyone's* raw messages. For local testing the tricorder serves the same page at
+`http://localhost:1701/tricorder`.
 
 The topic is still readable by anyone determined enough to pull it out of the QR code, so
 the approval queue is the real filter. Messages expire from ntfy.sh after 12 hours.

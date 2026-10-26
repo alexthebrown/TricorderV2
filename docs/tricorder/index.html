@@ -1,7 +1,8 @@
 <!doctype html>
-<!-- Visitor page for the tricorder's message relay. Host it free with GitHub Pages
-     (Settings > Pages > Deploy from branch: main, folder /docs). The tricorder's QR code
-     opens it as .../subspace/#<topic>; messages go to that topic on ntfy.sh. -->
+<!-- Visitor page for the tricorder's message relay, hosted free on GitHub Pages at
+     https://alexthebrown.github.io/TricorderV2/tricorder/ (Settings > Pages > main, /docs).
+     The tricorder's QR code opens it as .../tricorder/#<topic>; messages go to that topic on
+     ntfy.sh. The tricorder also serves it itself at http://<tricorder>:1701/tricorder. -->
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Tricorder Subspace Link</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,7 +40,7 @@ let server=new URLSearchParams(location.search).get('s')||'https://ntfy.sh';
 const valid=t=>/^[\w-]{6,64}$/.test(t);
 $('from').value=localStorage.from||'';
 function say(t,c){$('status').textContent=t;$('status').className=c}
-// Served by the tricorder itself (http://<tricorder>:1701/visitor) there's no #topic:
+// Served by the tricorder itself (http://<tricorder>:1701/tricorder) there's no #topic:
 // ask it, and ask again before each send in case the frequency was changed.
 const local=!valid(topic)&&location.protocol.startsWith('http');
 async function askTricorder(){
